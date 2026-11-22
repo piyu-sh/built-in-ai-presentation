@@ -1,0 +1,18 @@
+{
+  "name": "built-in-ai-talk",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/dom-chromium-ai": "latest",
+    "@types/node": "^20.17.0",
+    "typescript": "^5.6.3",
+    "vite": "^6.4.6"
+  }
+}
