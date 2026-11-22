@@ -101,21 +101,12 @@ The deck’s real-world slide uses verified Chrome-published case studies linked
 
 ## Deploy to GitHub Pages
 
-This repo includes `.github/workflows/deploy.yml`, but it currently triggers on pushes to **`main`**. If your repo uses **`master`** (like this one), either push/merge to `main` or change the workflow branch.
+This repo includes `.github/workflows/deploy.yml` and triggers on pushes to `master`/`main` (or manual dispatch).
 
-1. **Push the workflow to GitHub** (it must be on the default branch GitHub Actions reads, usually `main`/`master`).
+1. **Push to GitHub** (make sure `.github/workflows/deploy.yml` is on GitHub).
 2. In GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Update workflow trigger if needed:
-
-```yaml
-on:
-  push:
-    branches: [master]   # or main
-  workflow_dispatch:
-```
-
-4. Push to that branch, or run the workflow manually from **Actions → Deploy deck to GitHub Pages → Run workflow**.
-5. The site will be published at `https://<user>.github.io/<repo>/` (this build uses `base: './'`, so project subpaths work).
+3. Push to `master`/`main`, or run manually from **Actions → Deploy deck to GitHub Pages → Run workflow**.
+4. The site will be published at `https://<user>.github.io/<repo>/` (this build uses `base: './'`, so project subpaths work).
 
 If you don’t see the workflow in Actions, confirm `.github/workflows/deploy.yml` exists on GitHub and that Actions are enabled for the repo.
 
