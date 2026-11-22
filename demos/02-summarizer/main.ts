@@ -111,13 +111,13 @@ for (const item of [
 
 textArea.rows = 7;
 app.append(
-  h('div', { class: 'wrap' },
-    h('header', { class: 'top' },
-      h('h1', { text: 'Summarize — you pick the shape' }),
+  h('div', { class: 'wrap', style: 'padding:12px 14px 16px;max-width:1180px;' },
+    h('header', { class: 'top', style: 'margin-bottom:10px;padding-bottom:8px;' },
+      h('h1', { text: 'Summarize — you pick the shape', style: 'font-size:16px;' }),
       h('span', { class: 'sub', text: 'Summarizer API · streaming' }),
       h('a', { href: '../../index.html', text: '← deck' }),
     ),
-    h('div', { class: 'grid two', style: 'gap:10px; align-items:start;' },
+    h('div', { class: 'grid two', style: 'gap:10px; align-items:start; grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);' },
       h('div', {},
         section('Input',
           textArea,

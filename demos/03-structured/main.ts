@@ -1,4 +1,4 @@
-import { availability, call, createSession, errText, formatMs, keynoteMode, timed } from '../shared/ai';
+import { availability, call, createSession, errText, formatMs, keynoteMode, timed, withTimeout } from '../shared/ai';
 import { badge, button, chip, codeBlock, h, pre, section } from '../shared/dom';
 import { CANNED, INVOICE_EMAIL, SCHEMAS, type SchemaKey } from '../shared/data';
 
@@ -10,6 +10,7 @@ textArea.rows = 6;
 
 const schemaButtons = h('div', { class: 'controls' });
 const runButton = button('Extract', () => void run(), 'primary');
+const downloadButton = button('Download model', () => void downloadModel(), 'ghost');
 const stateLine = h('div', { class: 'controls' });
 const timings = h('div', { class: 'chips' });
 const rawOutput = pre('Raw model output');
@@ -60,19 +61,19 @@ for (const key of Object.keys(SCHEMAS) as SchemaKey[]) {
 }
 
 app.append(
-  h('div', { class: 'wrap' },
-    h('header', { class: 'top' },
-      h('h1', { text: 'Prose in → typed object out' }),
+  h('div', { class: 'wrap', style: 'padding:12px 14px 16px;max-width:1180px;' },
+    h('header', { class: 'top', style: 'margin-bottom:10px;padding-bottom:8px;' },
+      h('h1', { text: 'Prose in → typed object out', style: 'font-size:16px;' }),
       h('span', { class: 'sub', text: 'Prompt API + JSON Schema' }),
       h('a', { href: '../../index.html', text: '← deck' }),
     ),
-    h('div', { class: 'grid two', style: 'gap:10px; align-items:start;' },
+    h('div', { class: 'grid two', style: 'gap:10px; align-items:start; grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);' },
       h('div', {},
         section('Input',
           textArea,
           h('label', { text: 'Schema' }),
           schemaButtons,
-          h('div', { class: 'controls' }, runButton),
+          h('div', { class: 'controls' }, runButton, downloadButton),
           stateLine,
           timings,
         ),
@@ -84,28 +85,53 @@ app.append(
 );
 syncSchema();
 
+async function downloadModel(): Promise<void> {
+  downloadButton.disabled = true;
+  stateBadge.textContent = 'Prompt API: downloading/checking…';
+  stateBadge.className = 'badge badge-warn';
+  try {
+    const opts = { expectedInputs: [{ type: 'text', languages: ['en'] }], expectedOutputs: [{ type: 'text', languages: ['en'] }] };
+    const st = await availability('LanguageModel', opts);
+    if (st !== 'unavailable') {
+      const s = await withTimeout((globalThis as any).LanguageModel.create(opts), 180000, 'LanguageModel.create()') as { destroy?: () => void };
+      s.destroy?.();
+    }
+    stateBadge.textContent = `Prompt API: ${await availability('LanguageModel', opts)}`;
+    stateBadge.className = 'badge badge-ok';
+  } catch (e) {
+    stateBadge.textContent = `Prompt API: ${errText(e)}`;
+    stateBadge.className = 'badge badge-bad';
+  } finally { downloadButton.disabled = false; }
+}
+
 function tryParseJson(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
   const candidates = [cleaned];
-  const first = cleaned.indexOf('{');
-  const last = cleaned.lastIndexOf('}');
-  if (first >= 0 && last > first) candidates.push(cleaned.slice(first, last + 1));
+  const objStart = cleaned.indexOf('{');
+  const objEnd = cleaned.lastIndexOf('}');
+  if (objStart >= 0 && objEnd > objStart) candidates.push(cleaned.slice(objStart, objEnd + 1));
+  const arrStart = cleaned.indexOf('[');
+  const arrEnd = cleaned.lastIndexOf(']');
+  if (arrStart >= 0 && arrEnd > arrStart) candidates.push(cleaned.slice(arrStart, arrEnd + 1));
+  // Greedy: find first JSON-looking line
+  const line = cleaned.split('\n').find((l) => /^\s*[\[{]/.test(l));
+  if (line) candidates.push(line.trim());
   let error = 'Invalid JSON';
   for (const candidate of candidates) {
     try { return { ok: true, value: JSON.parse(candidate) }; }
     catch (e) { error = errText(e); }
   }
-  return { ok: false, error };
+  return { ok: false, error: `${error} — got: ${cleaned.slice(0, 80)}` };
 }
 
 function renderObject(value: unknown): void {
   fields.replaceChildren();
-  if (typeof value !== 'object' || value === null) {
-    fields.append(h('dt', { text: 'result' }), h('dd', { text: String(value) }));
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    fields.append(h('dt', { text: 'result' }), h('dd', { text: Array.isArray(value) ? value.join(', ') : String(value) }));
     return;
   }
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    const display = Array.isArray(entry) ? entry.join(', ') : typeof entry === 'string' ? entry : JSON.stringify(entry);
+    const display = Array.isArray(entry) ? entry.join(', ') : typeof entry === 'string' ? entry : entry == null ? '' : JSON.stringify(entry);
     fields.append(h('dt', { text: key }), h('dd', { text: display || '—' }));
   }
 }
@@ -129,28 +155,34 @@ async function run(): Promise<void> {
     return;
   }
 
-  const options = {
+  const createOptions = {
     initialPrompts: [{
       role: 'system',
-      content: 'Extract the requested fields. Use an empty string when a field is genuinely absent. Never guess.',
+      content: 'Extract the requested fields. Use an empty string when a field is genuinely absent. Never guess. Return JSON only.',
     }],
     expectedInputs: [{ type: 'text', languages: ['en'] }],
     expectedOutputs: [{ type: 'text', languages: ['en'] }],
-    responseConstraint: SCHEMAS[schemaKey].schema,
   };
 
   try {
-    const state = await availability('LanguageModel', options);
+    const state = await availability('LanguageModel', createOptions);
     stateBadge.textContent = `Prompt API: ${state}`;
     stateBadge.className = `badge badge-${state === 'available' ? 'ok' : 'warn'}`;
-    if (state !== 'available') throw new Error(`Prompt API is ${state} on this machine`);
-    const created = await timed(() => createSession('LanguageModel', options, 60_000));
+    if (state !== 'available') throw new Error(`Prompt API is ${state} on this machine. Click Download model once, or use canned mode.`);
+    const created = await timed(() => createSession('LanguageModel', createOptions, 90_000));
     tCreate.set(formatMs(created.ms));
-    const prompted = await timed(async () => String(await call(created.value, 'prompt', textArea.value)));
+    const promptText = `Return ONLY valid JSON matching the schema. No markdown, no explanation.\n\n${textArea.value}`;
+    let prompted = await timed(async () => String(await call(created.value, 'prompt', promptText, { responseConstraint: SCHEMAS[schemaKey].schema })));
+    let parsed = tryParseJson(prompted.value);
+    if (!parsed.ok) {
+      // Retry once - some model states return prose around JSON
+      const retry = await timed(async () => String(await call(created.value, 'prompt', `Extract JSON only. ${textArea.value}`, { responseConstraint: SCHEMAS[schemaKey].schema })));
+      prompted = { value: `${prompted.value}\n\n--- retry ---\n${retry.value}`, ms: prompted.ms + retry.ms };
+      parsed = tryParseJson(retry.value);
+    }
     rawOutput.set(prompted.value);
     tPrompt.set(formatMs(prompted.ms));
-    const parsed = tryParseJson(prompted.value);
-    if (!parsed.ok) throw new Error(parsed.error);
+    if (!parsed.ok) throw new Error(`JSON parse failed: ${parsed.error}`);
     renderObject(parsed.value);
     tParse.set('ok');
     const destroy = created.value['destroy'];

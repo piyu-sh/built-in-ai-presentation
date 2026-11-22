@@ -42,6 +42,11 @@ const prevBtn = commandButton('← Prev', () => send({ action: 'prev' }));
 const nextBtn = commandButton('Next →', () => send({ action: 'next' }));
 const cannedBtn = commandButton('Canned output: OFF', () => send({ action: 'canned', enabled: !state.canned }));
 const warmBtn = commandButton('Warm model', () => send({ action: 'warm' }));
+const themeBtn = commandButton('Theme: dark', () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  send({ action: 'theme', value: next });
+});
 const focusBtn = commandButton('Focus deck', () => window.opener?.focus());
 
 const side = h('aside', { class: 'p-side' },
@@ -53,12 +58,25 @@ const side = h('aside', { class: 'p-side' },
   ),
   h('section', { class: 'p-panel' }, h('h2', { text: 'Control' }),
     h('div', { class: 'p-buttons' }, prevBtn, nextBtn),
-    focusBtn,
+    h('div', { class: 'p-buttons' }, themeBtn, focusBtn),
     h('p', { class: 'p-hint', text: 'Arrow keys navigate. K toggles canned output. Close this window when using a duplicated display.' }),
   ),
 );
 
 app.append(header, progress, h('main', { class: 'p-main' }, notesPanel, side));
+
+const THEME_KEY = 'builtin-ai:theme';
+function applyTheme(theme: 'dark' | 'light'): void {
+  document.documentElement.dataset.theme = theme;
+  themeBtn.textContent = `Theme: ${theme}`;
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+}
+function initTheme(): void {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    applyTheme(saved === 'light' ? 'light' : 'dark');
+  } catch { applyTheme('dark'); }
+}
 
 const defaultState: DeckState = {
   index: 0,
@@ -121,5 +139,6 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+initTheme();
 state = sync.readState() ?? defaultState;
 applyState(state);

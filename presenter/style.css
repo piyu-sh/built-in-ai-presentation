@@ -12,6 +12,19 @@
   --bad: #fca5a5;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f7fc;
+  --panel: #ffffff;
+  --line: #cfdaea;
+  --text: #152238;
+  --muted: #536a89;
+  --accent: #0284c7;
+  --accent-2: #7c3aed;
+  --ok: #059669;
+  --warn: #b45309;
+  --bad: #dc2626;
+}
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); }

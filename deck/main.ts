@@ -16,6 +16,7 @@ const drawer = h('aside', { class: 'drawer', 'aria-label': 'Presenter controls' 
 app.append(stage, drawer);
 
 let index = 0;
+let stepIndex = 0;
 let talkStart: number | null = null;
 let drawerClock: HTMLElement | null = null;
 let readiness = 'Model: checking…';
@@ -97,12 +98,17 @@ function renderStats(slide: Slide): HTMLElement {
 }
 
 function renderBranches(slide: Slide): HTMLElement {
-  const wrap = h('div', { class: 'branches' });
-  for (const [position, branch] of (slide.branches ?? []).entries()) {
-    const row = h('div', { class: `branch tone-${branch.tone ?? 'slate'}`, style: `--i:${position}` });
-    row.append(h('div', { class: 'question', text: branch.q }));
-    row.append(h('div', { class: 'arrow', text: '→' }));
-    row.append(h('div', { class: 'answer', text: branch.a }));
+  const wrap = h('div', { class: 'decision-flowchart' });
+  const branches = slide.branches ?? [];
+  for (const [position, branch] of branches.entries()) {
+    const tone = branch.tone ?? 'slate';
+    if (position > 0) wrap.append(h('div', { class: 'flow-connector' }, h('span', { class: 'flow-line' }), h('span', { class: 'flow-arrow', text: '▼' })));
+    const row = h('article', { class: `flow-node tone-${tone}`, style: `--i:${position}` });
+    row.append(h('div', { class: 'flow-step', text: String(position + 1) }));
+    const body = h('div', { class: 'flow-body' });
+    body.append(h('div', { class: 'flow-q', text: branch.q.replace(/^\d+\s*·\s*/, '') }));
+    body.append(h('div', { class: 'flow-a', text: branch.a }));
+    row.append(body);
     wrap.append(row);
   }
   return wrap;
@@ -133,6 +139,23 @@ function highlight(code: string): DocumentFragment {
   return frag;
 }
 
+function applyCodeStep(node: HTMLElement, slide: Slide, step: number): void {
+  const steps = slide.codeSteps ?? [];
+  const active = steps[step];
+  const lines = node.querySelectorAll<HTMLElement>('.code-line');
+  lines.forEach((el) => {
+    const n = Number(el.dataset.ln);
+    const on = !active || active.lines.includes(n);
+    el.classList.toggle('active', !!active && on);
+    el.classList.toggle('dim', !!active && !on);
+  });
+  const note = node.querySelector<HTMLElement>('.code-step-note');
+  if (note) note.textContent = active ? active.note : '';
+  node.querySelectorAll<HTMLElement>('.code-step-dots .dot').forEach((d, i) => d.classList.toggle('active', i === step));
+  const hint = node.querySelector<HTMLElement>('.code-step-hint');
+  if (hint) hint.textContent = steps.length ? `Step ${step + 1}/${steps.length} · ← →` : '';
+}
+
 function renderSlide(slide: Slide): HTMLElement {
   const node = h('section', { class: `slide ${slide.kind}` });
 
@@ -156,9 +179,25 @@ function renderSlide(slide: Slide): HTMLElement {
   }
 
   if (slide.kind === 'code') {
-    const pre = h('pre', { class: 'code' });
-    pre.append(highlight(slide.code ?? ''));
+    const lines = (slide.code ?? '').split('\n');
+    const pre = h('pre', { class: 'code code-steps' });
+    const stepCount = slide.codeSteps?.length ?? 0;
+    for (let i = 0; i < lines.length; i++) {
+      const ln = h('span', { class: 'code-line', 'data-ln': String(i + 1) });
+      ln.append(highlight(lines[i] ?? ''));
+      ln.append(document.createTextNode('\n'));
+      pre.append(ln);
+    }
     node.append(pre);
+    if (stepCount > 0) {
+      const note = h('div', { class: 'code-step-note', text: '' });
+      const dots = h('div', { class: 'code-step-dots' });
+      for (let i = 0; i < stepCount; i++) dots.append(h('span', { class: `dot ${i === 0 ? 'active' : ''}` }));
+      const hint = h('div', { class: 'code-step-hint', text: '← → step through code' });
+      node.append(h('div', { class: 'code-step-bar' }, dots, note, hint));
+      // apply initial step
+      applyCodeStep(node, slide, 0);
+    }
     return node;
   }
 
@@ -192,7 +231,7 @@ function renderSlide(slide: Slide): HTMLElement {
   }
 
   if (slide.kind === 'title') {
-    if (slide.id === 'title' && slide.takeaways?.[0]) {
+    if ((slide.id === 'title' || slide.id === 'thanks') && slide.takeaways?.[0]) {
       node.append(h('div', { class: 'title-author', text: slide.takeaways[0] }));
     } else if (slide.takeaways?.length) {
       const wrap = h('div', { class: 'takeaways' });
@@ -299,14 +338,23 @@ async function warmNow(): Promise<void> {
 async function prewarmFor(slideId: string): Promise<void> {
   if (keynoteMode()) return;
   try {
-    if (slideId === 'cold-open' || slideId === 'injection') {
-      await prewarm(); // LanguageModel/translation-adjacent warmup
+    const ai = await import('../demos/shared/ai');
+    const warmIfAvailable = async (name: string, opts?: Record<string, unknown>) => {
+      const st = await ai.availability(name, opts);
+      if (st === 'available') { const s = await ai.createSession(name, opts, 60_000); (s as any).destroy?.(); }
+    };
+    if (slideId === 'cold-open') {
+      await Promise.allSettled([
+        warmIfAvailable('LanguageDetector'),
+        warmIfAvailable('Translator', { sourceLanguage: 'fr', targetLanguage: 'en' }),
+        warmIfAvailable('Summarizer', { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: 'en' }),
+      ]);
     } else if (slideId === 'condense') {
-      const { availability: a, createSession: c } = await import('../demos/shared/ai');
-      const opts = { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: 'en' };
-      if (await a('Summarizer', opts) === 'available') { const s = await c('Summarizer', opts, 60_000); const d = (s as any).destroy; if (typeof d === 'function') d.call(s); }
+      await warmIfAvailable('Summarizer', { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: 'en' });
     } else if (slideId === 'extract' || slideId === 'audience-input') {
       await prewarm();
+    } else if (slideId === 'injection') {
+      await warmIfAvailable('Translator', { sourceLanguage: 'fr', targetLanguage: 'en' });
     }
   } catch { /* best effort */ }
 }
@@ -316,6 +364,7 @@ function go(next: number): void {
   if (target !== index && target === 1) talkStart = performance.now();
   if (target === 0) talkStart = null;
   index = target;
+  stepIndex = 0;
 
   const slide = slides[index]!;
   const rendered = renderSlide(slide);
@@ -328,22 +377,52 @@ function go(next: number): void {
   broadcast();
 }
 
+function advance(dir: 1 | -1): void {
+  const slide = slides[index]!;
+  const steps = slide.codeSteps;
+  if (steps && steps.length > 0) {
+    const nextStep = stepIndex + dir;
+    if (nextStep >= 0 && nextStep < steps.length) {
+      stepIndex = nextStep;
+      const node = stage.querySelector<HTMLElement>('.slide');
+      if (node) applyCodeStep(node, slide, stepIndex);
+      return;
+    }
+  }
+  go(index + dir);
+}
+
+const THEME_KEY = 'builtin-ai:theme';
+
+function applyTheme(theme: 'dark' | 'light'): void {
+  document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+}
+
+function initTheme(): void {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === 'light' || saved === 'dark') applyTheme(saved);
+  } catch { /* ignore */ }
+}
+
 function handleCommand(command: PresenterCommand): void {
   if (command.action === 'next') go(index + 1);
   else if (command.action === 'prev') go(index - 1);
   else if (command.action === 'goto') go(command.index);
   else if (command.action === 'canned') {
     if (keynoteMode() !== command.enabled) toggleCanned();
-  } else if (command.action === 'warm') void warmNow();
+  } else if (command.action === 'theme') applyTheme(command.value);
+  else if (command.action === 'warm') void warmNow();
 }
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') {
     event.preventDefault();
-    go(index + 1);
+    advance(1);
   } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
     event.preventDefault();
-    go(index - 1);
+    advance(-1);
   } else if (event.key === 'Home') {
     go(0);
   } else if (event.key === 'End') {
@@ -362,6 +441,7 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
+initTheme();
 const initialId = location.hash.replace(/^#\/?/, '');
 const initialIndex = slides.findIndex((slide) => slide.id === initialId);
 go(initialIndex >= 0 ? initialIndex : 0);

@@ -34,6 +34,8 @@ export type SlideLink = {
   url: string;
 };
 
+export type CodeStep = { lines: number[]; note: string };
+
 export type Slide = {
   id: string;
   kind: 'title' | 'demo' | 'cards' | 'status' | 'code' | 'metrics' | 'decision' | 'poll' | 'projects' | 'close';
@@ -47,6 +49,7 @@ export type Slide = {
   projects?: Project[];
   takeaways?: string[];
   code?: string;
+  codeSteps?: CodeStep[];
   demo?: string;
   demoLabel?: string;
   links?: SlideLink[];
@@ -155,8 +158,8 @@ export const slides: Slide[] = [
       'Read the hardware line out loud. Desktop only: no Android, no iOS. ChromeOS only on Chromebook Plus.',
       'Rehearsal fact: the model sat at "downloading" with no error until 22 GB of free space existed; provisioning then took about 7.5 minutes.',
       'Languages today are en, es, ja, de, fr. Audio input needs a GPU, so there is deliberately no audio demo.',
+      'Prereqs/setup to mention if asked: supported desktop Chrome/Edge version; enough disk/RAM; model may need user gesture + download/provisioning. Flags/origin trials may be needed for some APIs depending on channel/version - check chrome://flags / chrome://on-device-internals and the official docs. Don’t claim “default on everywhere”.',
       'Say: "Check availability() and design an honest unsupported state. Do not pretend this is universal."',
-      'If challenged on Phi-4: that was in the original abstract; Edge now documents Aion Instruct 2.3B.',
     ],
   },
   {
@@ -170,7 +173,7 @@ export const slides: Slide[] = [
       { glyph: '◎', title: 'Language Detector', sub: 'Detects language of text · use before translate or multilingual input · helps route/label content', tone: 'cyan' },
       { glyph: '⇄', title: 'Translator', sub: 'Translates text between languages · use for local UI/content translation · helps privacy and offline UX', tone: 'green' },
       { glyph: '≡', title: 'Summarizer', sub: 'Condenses long text into key points · use for reviews, notes, articles · helps users scan faster', tone: 'violet' },
-      { glyph: '{ }', title: 'Prompt API', sub: 'General prompting + structured output · use for extraction/classification/custom tasks · helps turn prose into typed data', tag: 'Most flexible', tone: 'amber' },
+      { glyph: '{}', title: 'Prompt API', sub: 'General prompting + structured output · use for extraction/classification/custom tasks · helps turn prose into typed data', tag: 'Most flexible', tone: 'amber' },
       { glyph: '✎', title: 'Writer / Rewriter / Proofreader', sub: 'Draft, reshape, and polish text · use for writing assist · helps users edit without leaving page', tag: 'Origin trial', tone: 'slate' },
     ],
     links: [
@@ -204,6 +207,12 @@ if (state === 'available') {
 } else {
   showHonestFallback(state); // cloud, server, or reduced UX
 }`,
+    codeSteps: [
+      { lines: [1, 2, 3], note: 'Probe the exact config you will use. Same options for availability() and create().' },
+      { lines: [5, 6, 7, 8], note: 'Create after a user gesture. The browser owns model download/provisioning.' },
+      { lines: [10, 11, 12, 13], note: 'Call the task. Stream when possible. Render text, never HTML.' },
+      { lines: [14, 15, 16], note: 'No support? Be honest. Fallback, reduced UX, or cloud/hybrid.' },
+    ],
     links: [
       { label: 'Summarizer API', url: 'https://developer.chrome.com/docs/ai/summarizer-api' },
       { label: 'Built-in AI best practices', url: 'https://developer.chrome.com/docs/ai/built-in' },
@@ -286,13 +295,14 @@ if (state === 'available') {
     id: 'decision',
     kind: 'decision',
     kicker: '',
-    title: 'Two decisions, not one',
+    title: 'How to decide when to use built-in AI',
     seconds: 120,
-    subtitle: 'Where it runs, and which API shape fits the job.',
+    subtitle: 'A quick top-to-bottom decision flow.',
     branches: [
-      { q: 'Decision 1 · Where should it run?', a: 'On-device when private/offline/low-latency; cloud/hybrid when you need reach, latest knowledge, or bigger models', tone: 'green' },
-      { q: 'Decision 2 · What API shape fits?', a: 'Task API for narrow jobs (detect/translate/summarize/write). Prompt API for custom tasks or JSON-schema extraction', tone: 'cyan' },
-      { q: 'Always', a: 'Feature-detect, design unsupported state, and keep a fallback path', tone: 'amber' },
+      { q: '1 · Is the task a good fit?', a: 'Narrow tasks: detect, translate, summarize, write, extract, classify. Avoid if you need latest knowledge, huge context, or highest-quality reasoning.', tone: 'cyan' },
+      { q: '2 · Do constraints favor on-device?', a: 'Yes for private/sensitive data, offline, low latency, no per-call cost. No/partly means cloud or hybrid.', tone: 'green' },
+      { q: '3 · Is the API available for users?', a: 'Use availability() with the same options as create(). Handle unavailable/downloadable/downloading/available honestly.', tone: 'violet' },
+      { q: '4 · Which API shape fits?', a: 'Task API for narrow jobs. Prompt API for custom/structured output with responseConstraint. Add fallback when needed.', tone: 'amber' },
     ],
     links: [
       { label: 'Built-in AI APIs', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
@@ -316,6 +326,10 @@ if (await Summarizer.availability(opts) === 'available') {
 }
 // Fallback: cloud, server, or hybrid (e.g. Firebase AI Logic)
 return summarizeWithCloudApi(text);`,
+    codeSteps: [
+      { lines: [1, 2, 3, 4], note: 'Prefer on-device when available: private, offline, low latency, no per-call cost.' },
+      { lines: [5, 6], note: 'No support? Fall back honestly - cloud, server, or hybrid. Capability, not ideology.' },
+    ],
     links: [
       { label: 'Firebase AI Logic hybrid', url: 'https://firebase.google.com/docs/ai-logic/hybrid-on-device-inference' },
     ],
@@ -328,18 +342,19 @@ return summarizeWithCloudApi(text);`,
     id: 'audience-input',
     kind: 'demo',
     kicker: '',
-    title: 'Where would you use this?',
-    seconds: 90,
-    subtitle: 'Audience picks a use case. We map it live to the right API.',
+    title: 'What would you build with it?',
+    seconds: 120,
+    subtitle: 'Tell me a use case. We’ll turn it into an on-device API plan live.',
     demo: 'demos/05-use-case/index.html',
-    demoLabel: 'AUDIENCE INPUT → API SUGGESTION',
+    demoLabel: 'AUDIENCE USE CASE → PLAN',
     links: [
       { label: 'Built-in AI APIs', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
     ],
     notes: [
-      'Ask the room: “What would you use this for in your app?” Take one or two answers. Type it in, pick the closest constraint, and run it.',
-      'The demo uses the Prompt API to suggest a built-in API path and fallback. Treat it as a live brainstorming aid, not an authority.',
-      'If Prompt API is unavailable, the demo falls back to deterministic local suggestions. Say that out loud — that is the product pattern.',
+      'Start by asking the audience for real use cases. Type their words in first; the constraint selector is secondary.',
+      'The demo uses Prompt API to draft an implementation plan (API, why, UX/fallback, first step). Treat it as a brainstorming aid and correct it live if needed.',
+      'If Prompt API is unavailable, the demo still produces a deterministic local plan. Say that out loud — that’s the same progressive-enhancement pattern you want in products.',
+      'GitHub Pages is static: no built-in live audience input collection. For real-time audience submissions you’d need a tiny backend/form service; for this talk, ask verbally and type selected answers.',
     ],
   },
   {
@@ -348,44 +363,44 @@ return summarizeWithCloudApi(text);`,
     kicker: '',
     title: 'Where it shows up in real products',
     seconds: 85,
-    subtitle: 'Real-world usage, not just demos.',
+    subtitle: 'Real signals, not just demos.',
     projects: [
       {
-        title: 'Google Meet',
-        line: 'Live captions translated on-device during calls',
-        tag: 'Google product',
-        tone: 'cyan',
-      },
-      {
-        title: 'Chrome',
-        line: 'Built-in translation and on-device AI features',
-        tag: 'Browser UX',
+        title: 'Chrome translation',
+        line: 'Browser translation is a real, familiar on-device/user-facing translation experience',
+        tag: 'Product signal',
         tone: 'green',
       },
       {
-        title: 'Mastodon / Elk',
-        line: 'Client-side translate/detect interest to reduce server cost',
+        title: 'Chrome Live Caption',
+        line: 'Captions/speech features in Chrome settings show on-device ML in product UX',
+        tag: 'Product signal',
+        tone: 'cyan',
+      },
+      {
+        title: 'Mastodon PRs',
+        line: 'Client-side translate/detect experiments to reduce server cost',
         tag: 'Adoption signal',
         tone: 'violet',
       },
       {
-        title: 'Your app',
-        line: 'Private summaries, extraction, multilingual input',
+        title: 'What you can ship',
+        line: 'Private summaries, forms, support triage, multilingual input',
         tag: 'Opportunity',
         tone: 'amber',
       },
     ],
     links: [
-      { label: 'Google Meet translated captions', url: 'https://support.google.com/meet/answer/13993744' },
-      { label: 'Chrome live caption/translation', url: 'https://support.google.com/chrome/answer/10538231' },
-      { label: 'Mastodon translation PR #35369', url: 'https://github.com/mastodon/mastodon/pull/35369' },
-      { label: 'Mastodon language detect PR #35345', url: 'https://github.com/mastodon/mastodon/pull/35345' },
+      { label: 'Chrome Live Caption', url: 'https://support.google.com/chrome/answer/10538231' },
+      { label: 'Use Chrome translation', url: 'https://support.google.com/chrome/answer/173424' },
+      { label: 'Mastodon translate PR #35369', url: 'https://github.com/mastodon/mastodon/pull/35369' },
+      { label: 'Mastodon detect PR #35345', url: 'https://github.com/mastodon/mastodon/pull/35345' },
     ],
     notes: [
-      'I looked at the 2025 hackathon gallery for inspiration; the strongest pattern to borrow is graceful degradation (Pet Shelter App): AI fills the form, but the form still works without AI. I did not find a hackathon demo that cleanly fits an audience-in-the-room live interaction better than the existing condense/extract demos.',
-      'Google Meet live caption translation is a concrete real-world on-device AI use case. Chrome’s own translation/features are useful product context; layer 1 is not a developer API.',
-      'Mastodon PRs (#35369 translate, #35345 detect) and Elk’s discussion show real adoption pressure: client-side translation can remove paid server-side translation costs for admins. Present this as adoption signal, not universal shipped support.',
-      'Be careful not to overclaim customer case studies. The previously mentioned Perplexity case study 404’d, so it stays out.',
+      'Be precise: Chrome translation and Live Caption are real browser/product signals that users recognize; do NOT claim they are implemented with the same JS Prompt/Summarizer/Translator APIs you are teaching. They show demand for on-device/private/fast language assistance.',
+      'For developer-facing “real world” usage of built-in AI APIs specifically, Mastodon PRs #35369/#35345 are adoption signals/experiments, not shipped universal support. Be careful with claims.',
+      'If asked for hard production case studies using these exact web APIs, say: “I haven’t verified a strong public case study link I’m comfortable claiming on stage; I’ll use product signals + the open PRs as adoption evidence.”',
+      'Ask audience: “which of these maps to your product?” then bridge to their own use case on the next slide.',
     ],
   },
   {
@@ -437,7 +452,8 @@ return summarizeWithCloudApi(text);`,
     kicker: '',
     title: 'Thank you',
     seconds: 20,
-    subtitle: 'Questions?  ·  Piyush Gupta',
+    subtitle: 'Questions?',
+    takeaways: ['Piyush Gupta'],
     notes: [
       'Pause. Invite questions. If there is no second screen, keep this slide up during Q&A.',
       'Remind them the repo/demos are public once published.',

@@ -4,6 +4,14 @@ A 30-minute session: **25 minutes of content + 5 minutes of Q&A**. Built as a we
 
 The **audience view is clean**: no top bar, progress bar, timer, notes, or navigation controls. Speaker material lives in a hidden drawer and an optional synced presenter window.
 
+## Prerequisites (for live built-in AI demos)
+
+- **Supported browser**: recent desktop Chrome / Edge with built-in AI APIs available. Behavior varies by channel/version.
+- **Hardware/resources**: desktop only for most demos; model download/provisioning may require substantial free disk (observed ~22 GB needed on rehearsal machine) and can take minutes first time.
+- **User gesture + download**: model/session creation often requires a user gesture; `availability()` may return `downloadable`/`downloading`/`unavailable`. Demos include Download buttons and canned fallback.
+- **Flags/settings**: depending on browser/channel, you may need flags/components enabled. Check `chrome://flags`, `chrome://on-device-internals`, and official docs. Do **not** assume APIs are enabled by default for every user.
+- **Privacy/fallback**: treat unsupported states as normal product states; GitHub Pages/static deploy uses explicit fallback/canned output.
+
 ## Run it
 
 ```bash

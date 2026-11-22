@@ -15,6 +15,7 @@ export type PresenterCommand =
   | { action: 'prev' }
   | { action: 'goto'; index: number }
   | { action: 'canned'; enabled: boolean }
+  | { action: 'theme'; value: 'dark' | 'light' }
   | { action: 'warm' };
 
 export type Message =
