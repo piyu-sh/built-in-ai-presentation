@@ -66,6 +66,8 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
   z-index: 1;
 }
 .slide.title h1 { max-width: 12ch; font-size: clamp(52px, 8vw, 112px); }
+.slide.title .takeaways { flex: 0; margin-top: clamp(12px, 2vw, 28px); }
+.slide.title .takeaway { font-size: clamp(16px, 1.8vw, 28px); padding: 14px 24px; }
 .slide.demo h1 { max-width: none; font-size: clamp(30px, 3.8vw, 56px); }
 .slide.status h1, .slide.projects h1 { font-size: clamp(32px, 4.4vw, 62px); }
 
@@ -235,7 +237,7 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
 }
 .branch {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, .7fr);
+  grid-template-columns: minmax(0, 1.35fr) auto minmax(0, .65fr);
   align-items: center;
   gap: clamp(12px, 2vw, 28px);
   padding: clamp(12px, 1.6vw, 24px) clamp(18px, 2.4vw, 36px);
@@ -246,9 +248,9 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
   animation: rise .45s both;
   animation-delay: calc(var(--i, 0) * 65ms);
 }
-.question { font-size: clamp(15px, 1.7vw, 24px); color: #dbe6ff; }
+.question { font-size: clamp(14px, 1.55vw, 22px); color: #dbe6ff; line-height: 1.35; }
 .arrow { color: var(--tone); font-size: clamp(20px, 2.4vw, 34px); }
-.answer { font-size: clamp(16px, 1.9vw, 27px); font-weight: 720; color: var(--tone); }
+.answer { font-size: clamp(15px, 1.7vw, 24px); font-weight: 720; color: var(--tone); line-height: 1.25; }
 
 .takeaways {
   position: relative;
@@ -312,13 +314,19 @@ iframe.demo {
   padding: clamp(18px, 2.4vw, 34px);
   border: 1px solid var(--line);
   border-radius: clamp(16px, 1.8vw, 26px);
-  background: rgba(7,13,27,.82);
+  background: rgba(7,13,27,.88);
   color: #d8e7ff;
   font: clamp(12px, 1.35vw, 19px)/1.65 var(--mono);
-  white-space: pre-wrap;
+  white-space: pre;
   overflow: auto;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 30px 90px rgba(0,0,0,.28);
 }
+.slide.code pre.code .kw { color: #c4b5fd; }
+.slide.code pre.code .fn { color: #67e8f9; }
+.slide.code pre.code .str { color: #86efac; }
+.slide.code pre.code .num { color: #fcd34d; }
+.slide.code pre.code .cm { color: #7f93b2; font-style: italic; }
+.slide.code pre.code .op { color: #93c5fd; }
 
 .drawer {
   position: fixed;

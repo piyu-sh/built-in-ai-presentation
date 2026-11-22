@@ -108,18 +108,44 @@ function renderBranches(slide: Slide): HTMLElement {
   return wrap;
 }
 
+const CODE_KW = new Set(['const', 'let', 'var', 'await', 'async', 'function', 'return', 'if', 'else', 'for', 'of', 'new', 'throw', 'try', 'catch', 'import', 'from', 'export', 'type']);
+
+function highlight(code: string): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  const token = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/|`(?:\\.|[^`])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*"|\b\d+(?:\.\d+)?\b|\b[A-Za-z_$][\w$]*\b)/g;
+  let last = 0;
+  for (const match of code.matchAll(token)) {
+    const idx = match.index ?? 0;
+    if (idx > last) frag.append(document.createTextNode(code.slice(last, idx)));
+    const text = match[0];
+    const span = document.createElement('span');
+    if (text.startsWith('//') || text.startsWith('/*')) span.className = 'cm';
+    else if (text.startsWith("'") || text.startsWith('"') || text.startsWith('`')) span.className = 'str';
+    else if (/^\d/.test(text)) span.className = 'num';
+    else if (CODE_KW.has(text)) span.className = 'kw';
+    else if (code[idx + text.length] === '(') span.className = 'fn';
+    else { frag.append(document.createTextNode(text)); last = idx + text.length; continue; }
+    span.textContent = text;
+    frag.append(span);
+    last = idx + text.length;
+  }
+  if (last < code.length) frag.append(document.createTextNode(code.slice(last)));
+  return frag;
+}
+
 function renderSlide(slide: Slide): HTMLElement {
   const node = h('section', { class: `slide ${slide.kind}` });
 
   if (slide.kind === 'title') node.append(h('div', { class: 'orbit' }));
-  node.append(h('div', { class: 'kicker', text: slide.kicker }));
+  if (slide.kicker) node.append(h('div', { class: 'kicker', text: slide.kicker }));
   node.append(h('h1', { text: slide.title }));
   if (slide.subtitle) node.append(h('p', { class: 'subtitle', text: slide.subtitle }));
 
   if (slide.kind === 'demo' && slide.demo) {
+    const src = keynoteMode() ? `${slide.demo}${slide.demo.includes('?') ? '&' : '?'}canned` : slide.demo;
     const iframe = h('iframe', {
       class: 'demo',
-      src: slide.demo,
+      src,
       title: slide.title,
       allow: 'language-model; translator; language-detector; summarizer; writer; rewriter; proofreader',
     });
@@ -129,7 +155,9 @@ function renderSlide(slide: Slide): HTMLElement {
   }
 
   if (slide.kind === 'code') {
-    node.append(h('pre', { class: 'code', text: slide.code ?? '' }));
+    const pre = h('pre', { class: 'code' });
+    pre.append(highlight(slide.code ?? ''));
+    node.append(pre);
     return node;
   }
 
@@ -159,6 +187,17 @@ function renderSlide(slide: Slide): HTMLElement {
       wrap.append(h('div', { class: 'takeaway', style: `--i:${position}`, text }));
     }
     node.append(wrap);
+    return node;
+  }
+
+  if (slide.kind === 'title') {
+    if (slide.takeaways?.length) {
+      const wrap = h('div', { class: 'takeaways' });
+      for (const [position, text] of slide.takeaways.entries()) {
+        wrap.append(h('div', { class: 'takeaway', style: `--i:${position}`, text }));
+      }
+      node.append(wrap);
+    }
     return node;
   }
 
@@ -228,7 +267,12 @@ function toggleCanned(): void {
   const enabled = !keynoteMode();
   setKeynoteMode(enabled);
   const iframe = stage.querySelector<HTMLIFrameElement>('iframe.demo');
-  if (iframe) iframe.src = iframe.src;
+  if (iframe) {
+    const url = new URL(iframe.src, location.href);
+    if (enabled) url.searchParams.set('canned', '1');
+    else url.searchParams.delete('canned');
+    iframe.src = url.pathname + url.search + url.hash;
+  }
   renderDrawer();
   broadcast();
 }

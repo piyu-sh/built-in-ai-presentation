@@ -177,7 +177,15 @@ export async function prewarm(): Promise<{ status: 'unsupported' | 'warm' | 'fai
 
 export function keynoteMode(): boolean {
   try {
-    return localStorage.getItem(KEYNOTE_KEY) === '1' || new URLSearchParams(location.search).has('canned');
+    return new URLSearchParams(location.search).has('canned') || localStorage.getItem(KEYNOTE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function keynoteForcedOff(): boolean {
+  try {
+    return new URLSearchParams(location.search).get('canned') === '0';
   } catch {
     return false;
   }
