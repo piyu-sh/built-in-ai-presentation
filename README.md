@@ -4,6 +4,13 @@ A 30-minute session: **25 minutes of content + 5 minutes of Q&A**. Built as a we
 
 The **audience view is clean**: no top bar, progress bar, timer, notes, or navigation controls. Speaker material lives in a hidden drawer and an optional synced presenter window.
 
+## What's in the deck
+
+- **Live demos**: capabilities probe, cold-open detect/translate/summarize, Summarizer, Prompt API + JSON Schema extraction, translation-injection safety, and audience use-case → plan.
+- **Decision framework**: a branching flowchart for when to use built-in AI (task fit → on-device constraints → availability → API shape/fallback).
+- **Real-world case studies**: verified Chrome published case studies (Yahoo Taiwan Ecommerce, redBus & Miravia, Policybazaar & JioHotstar, CyberAgent, Bright Sites & Terra).
+- **Presenter tools**: hidden drawer (`P`), synced presenter window (`W`), canned-output toggle (`K`), theme toggle in presenter settings, and per-slide reference links.
+
 ## Prerequisites (for live built-in AI demos)
 
 - **Supported browser**: recent desktop Chrome / Edge with built-in AI APIs available. Behavior varies by channel/version.
@@ -63,17 +70,18 @@ Full run of show: [`docs/talk-outline.md`](docs/talk-outline.md).
 ```
 index.html                 audience deck entry
 presenter.html             synced presenter window
-deck/slides.ts             visual slide content, timings, speaker notes
-deck/main.ts               clean renderer, navigation, hidden drawer
-deck/sync.ts               BroadcastChannel + localStorage sync
-deck/style.css             audience deck + drawer styles
-presenter/                 presenter window UI and styles
+deck/slides.ts             visual slide content, timings, speaker notes, links
+deck/main.ts               clean renderer, navigation, hidden drawer, theme sync
+deck/sync.ts               BroadcastChannel + localStorage sync, commands
+deck/style.css             audience deck + drawer styles (dark/light)
+presenter/                 presenter window UI, controls, references, theme toggle
 demos/shared/              API wrappers, timing helpers, synthetic data, styles
 demos/00-capabilities/     probe every API + image modality, copy JSON
 demos/01-hello/            cold open: detect → translate → summarize
 demos/02-summarizer/       audience picks length/format; streaming summary
 demos/03-structured/       Prompt API + JSON Schema → typed object
 demos/04-injection/        translation output is not sanitized HTML
+demos/05-use-case/         audience use case → plan (Prompt API + fallback)
 docs/                      research notes, outline, decisions
 ```
 
@@ -87,15 +95,29 @@ docs/                      research notes, outline, decisions
 - Every demo checks `keynoteMode()` and falls back to clearly-labelled canned output.
 - No timing, navigation, or speaker text is rendered in the audience view.
 
-## Hackathon inspiration
+## Real-world evidence
 
-The “What people shipped” beat uses real winners from the [Google Chrome Built-in AI Challenge 2025 gallery](https://googlechromeai2025.devpost.com/project-gallery): EduAdapt, Pet Shelter App, The Turing Werewolf, and Nutshell. Sources and lessons are in [`docs/research-notes.md`](docs/research-notes.md).
+The deck’s real-world slide uses verified Chrome-published case studies linked from [Built-in AI docs](https://developer.chrome.com/docs/ai/built-in#case-studies): [Yahoo Taiwan Ecommerce](https://developer.chrome.com/blog/built-in-ai-ambient-intelligence), [redBus & Miravia](https://developer.chrome.com/blog/summarizer-redbus-miravia), [Policybazaar & JioHotstar](https://developer.chrome.com/blog/pb-jiohotstar-translation-ai), [CyberAgent](https://developer.chrome.com/blog/prompt-api-blog-cyberagent), and [Bright Sites & Terra](https://developer.chrome.com/blog/summarizer-terra-brightsites). Keep claims tied to those sources.
 
 ## Deploy to GitHub Pages
 
-The included workflow (`.github/workflows/deploy.yml`) builds on push to `main` and deploys with `actions/deploy-pages`. After the first deploy: **Settings → Pages → Source: GitHub Actions**.
+This repo includes `.github/workflows/deploy.yml`, but it currently triggers on pushes to **`main`**. If your repo uses **`master`** (like this one), either push/merge to `main` or change the workflow branch.
 
-Because `base` is `'./'`, the built deck works from a project subpath such as `https://<user>.github.io/built-in-ai/`.
+1. **Push the workflow to GitHub** (it must be on the default branch GitHub Actions reads, usually `main`/`master`).
+2. In GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Update workflow trigger if needed:
+
+```yaml
+on:
+  push:
+    branches: [master]   # or main
+  workflow_dispatch:
+```
+
+4. Push to that branch, or run the workflow manually from **Actions → Deploy deck to GitHub Pages → Run workflow**.
+5. The site will be published at `https://<user>.github.io/<repo>/` (this build uses `base: './'`, so project subpaths work).
+
+If you don’t see the workflow in Actions, confirm `.github/workflows/deploy.yml` exists on GitHub and that Actions are enabled for the repo.
 
 ## Sources and caveats
 
