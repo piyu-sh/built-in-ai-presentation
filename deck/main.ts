@@ -98,19 +98,47 @@ function renderStats(slide: Slide): HTMLElement {
 }
 
 function renderBranches(slide: Slide): HTMLElement {
+  const b = slide.branches ?? [];
+  const node = (i: number, label: string, cls = ''): HTMLElement => {
+    const br = b[i] ?? { q: '', a: '', tone: 'slate' as const };
+    const tone = br.tone ?? 'slate';
+    const el = h('article', { class: `df-node tone-${tone} ${cls}`.trim() });
+    if (label) el.append(h('div', { class: 'df-label', text: label }));
+    el.append(h('div', { class: 'df-q', text: br.q.replace(/^\d+\s*·\s*/, '') }));
+    el.append(h('div', { class: 'df-a', text: br.a }));
+    return el;
+  };
+  const arrow = (text: string, cls = '') => h('div', { class: `df-arrow ${cls}`.trim() }, h('span', { class: 'df-arrow-line' }), h('span', { class: 'df-arrow-text', text }), h('span', { class: 'df-arrow-head', text: '▼' }));
+
+  // Layout:
+  // [0 task fit]
+  //   /Yes        \No/not ideal
+  // [1 constraints]  [3 fallback/cloud]
+  //   |Yes             |
+  // [2 availability]   (merges down to fallback)
+  //   |Yes      \No
+  // [4 shape]  [3 fallback/cloud] (reuse conceptually; show once on right)
   const wrap = h('div', { class: 'decision-flowchart' });
-  const branches = slide.branches ?? [];
-  for (const [position, branch] of branches.entries()) {
-    const tone = branch.tone ?? 'slate';
-    if (position > 0) wrap.append(h('div', { class: 'flow-connector' }, h('span', { class: 'flow-line' }), h('span', { class: 'flow-arrow', text: '▼' })));
-    const row = h('article', { class: `flow-node tone-${tone}`, style: `--i:${position}` });
-    row.append(h('div', { class: 'flow-step', text: String(position + 1) }));
-    const body = h('div', { class: 'flow-body' });
-    body.append(h('div', { class: 'flow-q', text: branch.q.replace(/^\d+\s*·\s*/, '') }));
-    body.append(h('div', { class: 'flow-a', text: branch.a }));
-    row.append(body);
-    wrap.append(row);
-  }
+  wrap.append(node(0, 'START', 'df-start'));
+
+  const split1 = h('div', { class: 'df-split' });
+  const left1 = h('div', { class: 'df-col' }, arrow('Yes', 'df-yes'), node(1, ''));
+  const right1 = h('div', { class: 'df-col' }, arrow('No / not ideal', 'df-no'), node(3, 'FALLBACK', 'df-fallback'));
+  split1.append(left1, right1);
+  wrap.append(split1);
+
+  const mid = h('div', { class: 'df-mid' });
+  const leftMid = h('div', { class: 'df-col' }, arrow('Yes', 'df-yes'), node(2, ''));
+  const rightMid = h('div', { class: 'df-col df-col-fallback' }, h('div', { class: 'df-merge-note', text: 'Keep feature usable' }));
+  mid.append(leftMid, rightMid);
+  wrap.append(mid);
+
+  const split2 = h('div', { class: 'df-split df-split-bottom' });
+  const left2 = h('div', { class: 'df-col' }, arrow('Available / downloadable', 'df-yes'), node(4, 'SHIP', 'df-ship'));
+  const right2 = h('div', { class: 'df-col' }, arrow('Unavailable', 'df-no'), h('div', { class: 'df-fallback-ref tone-red' }, h('div', { class: 'df-q', text: 'Use fallback path' }), h('div', { class: 'df-a', text: 'Cloud/hybrid/server or explicit canned/degraded UX.' })));
+  split2.append(left2, right2);
+  wrap.append(split2);
+
   return wrap;
 }
 

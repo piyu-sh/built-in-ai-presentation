@@ -276,28 +276,33 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
 .stat .label { font-size: clamp(13px, 1.3vw, 18px); font-weight: 650; }
 .stat .stat-sub { color: var(--muted); font: 11px var(--mono); }
 
-.decision-flowchart { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0; flex: 1; min-height: 0; justify-content: center; max-width: 1100px; width: 100%; margin: 0 auto; }
-.flow-connector { display: flex; flex-direction: column; align-items: center; gap: 0; height: clamp(14px, 2vh, 28px); color: rgba(147,197,253,.7); }
-.flow-line { width: 2px; flex: 1; background: linear-gradient(180deg, rgba(147,197,253,.45), rgba(147,197,253,.15)); }
-.flow-arrow { font-size: 10px; line-height: 1; color: rgba(147,197,253,.8); margin-top: -2px; }
-.flow-node {
-  display: grid; grid-template-columns: auto 1fr; gap: clamp(12px, 1.6vw, 20px); align-items: start;
-  padding: clamp(12px, 1.4vw, 20px) clamp(14px, 1.8vw, 24px);
-  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--line));
-  border-radius: 18px;
-  background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 12%, transparent), rgba(10,17,32,.72) 65%);
+.decision-flowchart { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; justify-content: center; width: 100%; margin: 0 auto; }
+.df-node, .df-fallback-ref {
+  padding: clamp(10px, 1.2vw, 16px) clamp(12px, 1.4vw, 18px);
+  border: 1px solid color-mix(in srgb, var(--tone) 38%, var(--line));
+  border-radius: 16px;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tone) 12%, transparent), rgba(10,17,32,.74) 68%);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-  animation: rise .4s both; animation-delay: calc(var(--i, 0) * 70ms);
 }
-.flow-step {
-  width: clamp(32px, 3vw, 42px); height: clamp(32px, 3vw, 42px); border-radius: 12px;
-  display: grid; place-items: center;
-  font: 800 clamp(14px, 1.4vw, 18px) var(--mono); color: var(--tone);
-  background: color-mix(in srgb, var(--tone) 16%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 30%, transparent);
-}
-.flow-body { min-width: 0; }
-.flow-q { font-size: clamp(16px, 1.8vw, 26px); font-weight: 740; line-height: 1.2; color: #eef4ff; margin-bottom: 4px; }
-.flow-a { font-size: clamp(12px, 1.15vw, 16px); line-height: 1.45; color: #c4d5ef; }
+.df-start { max-width: 720px; margin: 0 auto; width: 100%; }
+.df-label { display: inline-block; margin-bottom: 6px; padding: 2px 8px; border-radius: 999px; font: 700 10px var(--mono); letter-spacing: .12em; color: var(--tone); background: color-mix(in srgb, var(--tone) 14%, transparent); }
+.df-q { font-size: clamp(14px, 1.45vw, 22px); font-weight: 740; line-height: 1.2; color: #eef4ff; margin-bottom: 4px; }
+.df-a { font-size: clamp(11px, 1vw, 14px); line-height: 1.4; color: #c4d5ef; }
+.df-split, .df-mid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(10px, 1.4vw, 20px); align-items: stretch; }
+.df-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.df-arrow { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); font: 700 11px var(--mono); }
+.df-arrow-line { width: 2px; height: 14px; background: rgba(148,178,224,.35); }
+.df-arrow-head { font-size: 10px; line-height: 1; color: rgba(148,178,224,.8); }
+.df-arrow-text { padding: 2px 8px; border-radius: 999px; background: rgba(148,178,224,.08); border: 1px solid rgba(148,178,224,.18); color: #d8e7ff; }
+.df-yes .df-arrow-text { color: #86efac; border-color: rgba(134,239,172,.25); background: rgba(134,239,172,.08); }
+.df-no .df-arrow-text { color: #fca5a5; border-color: rgba(252,165,165,.25); background: rgba(252,165,165,.08); }
+.df-col-fallback { justify-content: flex-end; }
+.df-merge-note { padding: 12px 14px; border: 1px dashed rgba(252,165,165,.35); border-radius: 14px; color: #fecaca; font: 600 12px/1.4 var(--sans); background: rgba(127,29,29,.12); }
+.df-fallback-ref { opacity: .95; }
+:root[data-theme="light"] .df-node, :root[data-theme="light"] .df-fallback-ref { background: rgba(255,255,255,.78); }
+:root[data-theme="light"] .df-q { color: #162945; }
+:root[data-theme="light"] .df-a { color: #38506f; }
+:root[data-theme="light"] .df-arrow-text { color: #29415f; }
 
 .takeaways {
   position: relative;
@@ -430,9 +435,10 @@ body.presenter .drawer { transform: none; }
 @media (max-width: 900px) {
   .grid, .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .slide.status .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .flow-node { grid-template-columns: auto 1fr; padding: 12px 14px; }
-  .flow-q { font-size: 16px; }
-  .flow-a { font-size: 12px; }
+  .df-split, .df-mid { grid-template-columns: 1fr; gap: 8px; }
+  .df-start { max-width: none; }
+  .df-q { font-size: 15px; }
+  .df-a { font-size: 12px; }
   .title-visual { position: relative; right: auto; top: auto; transform: none; width: min(100%, 520px); margin: 10px 0 0; }
   .slide.title h1 { max-width: 14ch; }
 }
