@@ -10,6 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         deck: resolve(root, 'index.html'),
+        presenter: resolve(root, 'presenter.html'),
         capabilities: resolve(root, 'demos/00-capabilities/index.html'),
         hello: resolve(root, 'demos/01-hello/index.html'),
         summarizer: resolve(root, 'demos/02-summarizer/index.html'),

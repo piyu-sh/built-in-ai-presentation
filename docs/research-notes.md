@@ -14,6 +14,7 @@ Verified against primary sources in November 2026. Web search was unavailable (H
 - Translation security note: `webmachinelearning/translation-api#60`
 - Mastodon adoption PRs: `mastodon/mastodon#35369`, `mastodon/mastodon#35345`
 - W3C Web Machine Learning Community Group / WebML WG
+- Google Chrome Built-in AI Challenge 2025 project gallery: `https://googlechromeai2025.devpost.com/project-gallery`
 
 ## Chrome
 
@@ -59,6 +60,17 @@ Renames to respect in code written today: `inputQuota` → `contextWindow`, `mea
 - Cold: `create()` 3,637 ms; first token 19,169 ms; total 20,800 ms for 141 chars.
 - Warm: `create()` 3 ms; first token 408 ms; total 2,020 ms for 161 chars.
 - Edge: Performance Class High, manifest loaded, but `LanguageModel` undefined until the flag is enabled.
+
+## Hackathon examples (useful for inspiration)
+
+From the Google Chrome Built-in AI Challenge 2025 gallery (`googlechromeai2025.devpost.com/project-gallery`):
+
+- **EduAdapt** (Honorable Mention): Chrome extension that reshapes webpages for ADHD/dyslexia with on-device Gemini Nano. Strong “privacy-friendly + accessibility” angle; its team learned latency is the product problem, so they streamed and cached.
+- **Pet Shelter App** (Best Multimodal AI Application - Web Application): Prompt API reads pet photos, Writer generates descriptions, Proofreader cleans them, Translator localizes. Explicit graceful-degradation story: if AI is missing, the form still works.
+- **The Turing Werewolf** (Honorable Mention): cloned Prompt API sessions for distinct personas, JSON schemas, structured turn-taking; its own lesson was that LLMs need structure and constraints.
+- **Nutshell** (Most Helpful - Chrome Extension): hands-free browsing with head/mouth movements. Good reminder that on-device AI can be an assistive input method, not just text generation.
+
+Use these as range-finders for what people built; do not over-claim adoption or performance numbers beyond what the project pages say.
 
 ## Do not cite
 

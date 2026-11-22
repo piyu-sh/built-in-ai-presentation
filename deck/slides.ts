@@ -1,188 +1,210 @@
-export type Column = { head: string; rows: string[][] };
+export type Tone = 'cyan' | 'violet' | 'green' | 'amber' | 'red' | 'slate';
+
+export type Card = {
+  n?: string;
+  glyph?: string;
+  title: string;
+  sub?: string;
+  tag?: string;
+  tone?: Tone;
+};
+
+export type Stat = {
+  value: string;
+  label: string;
+  sub?: string;
+  tone?: Tone;
+};
+
+export type Branch = {
+  q: string;
+  a: string;
+  tone?: Tone;
+};
+
+export type Project = {
+  title: string;
+  line: string;
+  tag: string;
+  tone?: Tone;
+};
 
 export type Slide = {
   id: string;
-  kind: 'title' | 'demo' | 'layers' | 'status' | 'jobs' | 'code' | 'metrics' | 'flow' | 'standards' | 'poll' | 'close';
+  kind: 'title' | 'demo' | 'cards' | 'status' | 'code' | 'metrics' | 'decision' | 'poll' | 'projects' | 'close';
   kicker: string;
   title: string;
   seconds: number;
-  body?: string[];
+  subtitle?: string;
+  cards?: Card[];
+  stats?: Stat[];
+  branches?: Branch[];
+  projects?: Project[];
+  takeaways?: string[];
   code?: string;
   demo?: string;
-  demoNote?: string;
-  columns?: Column[];
+  demoLabel?: string;
   notes: string[];
 };
 
-export const TOTAL_SECONDS = 20 * 60;
+export const TOTAL_SECONDS = 25 * 60;
 
 export const slides: Slide[] = [
   {
     id: 'title',
     kind: 'title',
-    kicker: 'Conference talk · 25 minutes including Q&A',
+    kicker: 'A practical field guide',
     title: 'Built-In AI in the Browser',
-    seconds: 20,
-    body: [
-      'Practical capabilities for modern web apps',
-      'Chrome first · Edge next · honest about the rest',
-    ],
+    seconds: 15,
+    subtitle: 'Chrome first · Edge next · honest about the rest',
     notes: [
-      'Open the deck a few minutes early. If the badge says "Warm model", click it — the browser requires a user gesture for the first download.',
-      'Say the contract up front: by minute 20 you will know what these APIs can do, what they cannot, and when to choose them.',
-      'Do not apologise for the demo setup yet — the cold open makes the point better.',
+      'Open the deck early. The audience view is intentionally empty except for the slide — no controls, no timer, no badges.',
+      'The first model download needs a user gesture. If the presenter panel says the model is not warm, click Warm model before starting.',
+      'Say the contract: by the end they will know what these APIs can do, what they cannot, and when to choose them.',
     ],
   },
   {
     id: 'cold-open',
     kind: 'demo',
-    kicker: '0:20 · Cold open',
+    kicker: 'Cold open',
     title: 'No key. No server. No network request.',
-    seconds: 100,
+    seconds: 110,
     demo: 'demos/01-hello/index.html',
-    demoNote: 'Three languages → detect → translate → summarize. Run it live; if the model is not resident, switch to the canned output and say so.',
+    demoLabel: 'DETECT → TRANSLATE → SUMMARIZE',
     notes: [
       'Pick a French sample. Ask: "What language is this? What would it take to ship this in your app today?"',
-      'Then run the three calls. Point at the code panel: same shape every time.',
+      'Run the three calls. Point at the code panel: same shape every time.',
       'Land the line: the browser is shipping a model as a platform primitive, like Canvas or Web Crypto.',
-      'If keynote mode is on, say explicitly: "This is recorded output from this exact browser."',
+      'If Canned output is ON, say explicitly: "This is recorded output from this exact browser."',
     ],
   },
   {
     id: 'layers',
-    kind: 'layers',
-    kicker: '2:00 · The wider story, as a spine',
-    title: 'Four layers of "AI in the browser"',
-    seconds: 90,
-    columns: [
+    kind: 'cards',
+    kicker: 'The map',
+    title: 'Four layers of AI in the browser',
+    seconds: 100,
+    cards: [
       {
-        head: 'Layer',
-        rows: [
-          ['1 · Browser features', 'Chrome Translate, History Search, DevTools AI; Edge Copilot; Safari Summarize. Zero API access.'],
-          ['2 · Browser infrastructure', 'WebGPU, WebNN, Wasm. Bring your own model; you own the runtime.'],
-          ['3 · Built-in AI APIs  ← us', 'The browser ships the model. Task APIs + Prompt API. This is the talk.'],
-          ['4 · Agents / WebMCP', 'Your app registers tools; an agent calls them. Human in the loop.'],
-        ],
+        n: '01',
+        title: 'Browser features',
+        sub: 'Chrome Translate · Copilot · Safari Summarize',
+        tone: 'slate',
+      },
+      {
+        n: '02',
+        title: 'Infrastructure',
+        sub: 'WebGPU · Wasm · WebNN',
+        tone: 'violet',
+      },
+      {
+        n: '03',
+        title: 'Built-in APIs',
+        sub: 'Gemini Nano · Aion Instruct',
+        tag: 'You are here',
+        tone: 'cyan',
+      },
+      {
+        n: '04',
+        title: 'Agents',
+        sub: 'WebMCP · tools · human in the loop',
+        tone: 'amber',
       },
     ],
-    body: [
-      'Today we are firmly in layer 3 — but layers 1, 2 and 4 explain where this is going.',
-      'DevTools AI and Modern Web Guidance: one line, not a section. WebMCP: closing teaser only.',
-    ],
     notes: [
-      'This slide answers the "should I include the wider AI in Chrome doc?" question from planning: yes as a map, no as content.',
-      'Do not go deep on WebNN: Chrome is winding it down cross-platform. If someone asks, say it is being superseded and move on.',
-      'The useful takeaway: these layers solve different problems and have different owners.',
+      'This answers the planning question about the wider "AI in Chrome" doc: include it as a map, not as content.',
+      'Layer 1 has zero API access. Layer 2 means bringing your own model. Layer 3 is the talk. Layer 4 is the teaser at the end.',
+      'Do not go deep on WebNN: Chrome is winding it down cross-platform. If asked, say it is being superseded and move on.',
     ],
   },
   {
     id: 'status',
     kind: 'status',
-    kicker: '3:30 · Honest status',
-    title: 'What actually ships in November 2026',
-    seconds: 90,
-    columns: [
-      {
-        head: 'Browser / API',
-        rows: [
-          ['Chrome 138+', 'Translator, Language Detector, Summarizer — stable.'],
-          ['Chrome 148+', 'Prompt API stable on the web. Sampling-mode presets; JSON Schema / RegExp constraints.'],
-          ['Chrome trial only', 'Writer, Rewriter, Proofreader — developer / origin trial. Show code, do not promise.'],
-          ['Edge 158+', 'Prompt API is a flag-gated preview. Model is Aion Instruct 2.3B — not Phi-4-mini.'],
-          ['Firefox', 'Negative position on the Translation API spec. No built-in AI APIs.'],
-          ['Safari / WebKit', 'No position yet on Translation API. No shipping plan announced.'],
-        ],
-      },
-    ],
-    body: [
-      'Desktop only: no Android, no iOS. ChromeOS only on Chromebook Plus.',
-      '≈22 GB free disk (>4 GB VRAM, or 16 GB RAM + 4 cores). Unmetered network for first download.',
-      'Languages today: en, es, ja, de, fr. Audio input needs a GPU — so no audio demo here.',
+    kicker: 'Reality check',
+    title: 'What ships today',
+    seconds: 110,
+    subtitle: 'Desktop only · ~22 GB free · 5 languages',
+    cards: [
+      { title: 'Chrome 138+', sub: 'Translator · Detector · Summarizer', tag: 'Stable', tone: 'green' },
+      { title: 'Chrome 148+', sub: 'Prompt API on the web', tag: 'Stable', tone: 'green' },
+      { title: 'Edge 158+', sub: 'Aion Instruct 2.3B', tag: 'Flagged preview', tone: 'amber' },
+      { title: 'Firefox', sub: 'Negative on the spec', tag: 'No APIs', tone: 'red' },
+      { title: 'Safari', sub: 'No position yet', tag: 'No APIs', tone: 'red' },
     ],
     notes: [
-      'This is the slide that earns trust. Read the hardware numbers out loud.',
+      'Read the hardware line out loud. Desktop only: no Android, no iOS. ChromeOS only on Chromebook Plus.',
       'Rehearsal fact: the model sat at "downloading" with no error until 22 GB of free space existed; provisioning then took about 7.5 minutes.',
+      'Languages today are en, es, ja, de, fr. Audio input needs a GPU, so there is deliberately no audio demo.',
       'Say: "Check availability() and design an honest unsupported state. Do not pretend this is universal."',
       'If challenged on Phi-4: that was in the original abstract; Edge now documents Aion Instruct 2.3B.',
     ],
   },
   {
     id: 'jobs',
-    kind: 'jobs',
-    kicker: '5:00 · A mental model, not a feature list',
-    title: 'Four jobs you can actually ship',
-    seconds: 60,
-    columns: [
-      {
-        head: 'Job',
-        rows: [
-          ['Understand', 'Language Detector + Translator. Input in any supported language; one output language.'],
-          ['Condense', 'Summarizer. A narrow task model, not a chatbot in disguise.'],
-          ['Extract', 'Prompt API + responseConstraint. Text or image → typed object.'],
-          ['Write', 'Writer / Rewriter / Proofreader. Trial only — code today, product tomorrow.'],
-        ],
-      },
-    ],
-    body: [
-      'The review thread you are about to see is ONE instance of "condense" — not the thesis of the talk.',
-      'Ask: which of these jobs do you have in your own product?',
+    kind: 'cards',
+    kicker: 'Mental model',
+    title: 'Four jobs, not a feature list',
+    seconds: 70,
+    cards: [
+      { glyph: '◎', title: 'Understand', sub: 'Detect + translate', tone: 'cyan' },
+      { glyph: '≡', title: 'Condense', sub: 'Summarize', tone: 'violet' },
+      { glyph: '{ }', title: 'Extract', sub: 'Schema-constrained output', tone: 'green' },
+      { glyph: '✎', title: 'Write', sub: 'Writer · Rewriter · Proofreader', tag: 'Trial', tone: 'amber' },
     ],
     notes: [
-      'This corrects the abstract: a review section is an example, not the whole story.',
-      'The audience should be mapping these four jobs onto their own backlog during this slide.',
+      'This corrects the abstract: a review section is one instance of "condense", not the thesis of the talk.',
+      'Ask the room: which of these four jobs do you have in your own product?',
+      'The audience should be mapping these jobs onto their backlog during this slide.',
     ],
   },
   {
     id: 'shape',
     kind: 'code',
-    kicker: '6:00 · One shape to remember',
+    kicker: 'One shape',
     title: 'availability() → create() → call()',
-    seconds: 60,
+    seconds: 70,
     code: `const state = await Summarizer.availability(options);
 // 'unavailable' | 'downloadable' | 'downloading' | 'available'
 
 if (state === 'available') {
-  const session = await Summarizer.create(options);   // monitor download if needed
+  const session = await Summarizer.create(options);
   for await (const chunk of session.summarizeStreaming(text)) {
-    output.textContent += chunk;                      // text, never innerHTML
+    output.textContent += chunk;   // text, never innerHTML
   }
 } else {
   showHonestFallback(state);
 }`,
-    body: [
-      'Same shape for all task APIs. Prompt API adds initialPrompts, expectedInputs / expectedOutputs and responseConstraint.',
-      'The four availability states ARE your UI. Byte-level downloadprogress is not reliable — the browser owns the download.',
-    ],
     notes: [
       'Do not skip the fallback branch. That is what makes this shippable on a public site.',
       'Pass the same options to availability() and create(), otherwise you may probe a different configuration.',
-      'Need activation for the first download: trigger from a click, not on page load.',
+      'The first download needs activation: trigger from a click, not on page load.',
+      'Byte-level downloadprogress is not reliable; the four availability states are your UI.',
     ],
   },
   {
     id: 'condense',
     kind: 'demo',
-    kicker: '7:00 · Demo · Condense',
+    kicker: 'Demo · Condense',
     title: 'You pick the summary shape',
-    seconds: 180,
+    seconds: 200,
     demo: 'demos/02-summarizer/index.html',
-    demoNote: 'Hands up → presenter clicks. QR is a placeholder. The textarea is the paste-anything fallback. Streaming is the point.',
+    demoLabel: 'AUDIENCE PICKS THE OUTPUT',
     notes: [
       'Ask for a show of hands: one sentence, three bullets, or paragraph. Click the winning option.',
       'Point at the streaming output before it finishes; narrate what is happening.',
       'Then paste something absurd (a commit message, a recipe) to show it is a general text task.',
-      'Call out the timings: create(), first token, total. Warm first token was ~0.4s on this laptop.',
-      'If the model is not available, switch to keynote mode and say the output is canned from this browser.',
+      'Call out the timings: create(), first token, total. Warm first token was about 0.4s on this laptop.',
+      'If Canned output is ON, say the output is recorded from this browser.',
     ],
   },
   {
     id: 'extract',
     kind: 'demo',
-    kicker: '10:00 · Demo · Extract',
+    kicker: 'Demo · Extract',
     title: 'Prose in, typed object out',
-    seconds: 150,
+    seconds: 180,
     demo: 'demos/03-structured/index.html',
-    demoNote: 'Audience picks invoice vs review schema. JSON Schema goes into responseConstraint. Output rendered as key/value pairs.',
+    demoLabel: 'JSON SCHEMA → TYPED RESULT',
     notes: [
       'The email is deliberately messy: an old wrong total appears, plus an unrelated question.',
       'Ask the room which fields to extract. Click the corresponding schema button.',
@@ -194,40 +216,34 @@ if (state === 'available') {
   {
     id: 'tradeoffs',
     kind: 'metrics',
-    kicker: '12:30 · Trade-offs, with numbers',
+    kicker: 'Trade-offs',
     title: 'Fast when warm. Not magic when cold.',
-    seconds: 60,
-    columns: [
-      {
-        head: 'Measured on the demo laptop',
-        rows: [
-          ['Cold create()', '3,637 ms'],
-          ['Cold first token', '19,169 ms'],
-          ['Warm first token', '408 ms'],
-          ['Warm total (~160 chars)', '2,020 ms'],
-          ['First provision', '~7.5 minutes, ~22 GB'],
-        ],
-      },
-    ],
-    body: [
-      'Pre-warm once per session. Stream. Cap output length. Always have a fallback.',
-      'Quality ceiling of a ~2B-class on-device model; no internet knowledge; memory and disk are shared with the OS.',
+    seconds: 90,
+    subtitle: 'Measured on this laptop — not a benchmark',
+    stats: [
+      { value: '3.6s', label: 'Cold create()', tone: 'amber' },
+      { value: '19s', label: 'Cold first token', tone: 'red' },
+      { value: '0.4s', label: 'Warm first token', tone: 'green' },
+      { value: '2.0s', label: 'Warm total', tone: 'cyan' },
+      { value: '7.5m', label: 'First provision', tone: 'violet' },
     ],
     notes: [
-      'These numbers are from THIS laptop, not a benchmarketing deck. Say that.',
+      'These numbers are from this laptop, not a benchmarketing deck. Say that.',
       'The honest position: on-device wins on privacy, latency-after-warm, and cost; loses on ceiling quality and reach.',
+      'Practical rules: pre-warm once per session, stream, cap output length, always have a fallback.',
+      'Quality ceiling of a ~2B-class on-device model; no internet knowledge; memory and disk are shared with the OS.',
     ],
   },
   {
     id: 'injection',
     kind: 'demo',
-    kicker: '13:30 · Trade-offs, continued',
+    kicker: 'Trade-offs',
     title: 'Translated text is not sanitized HTML',
-    seconds: 60,
+    seconds: 70,
     demo: 'demos/04-injection/index.html',
-    demoNote: 'A mistyped tag becomes a working script tag after translation. Output is shown as text only.',
+    demoLabel: 'TEXT IN · TEXT OUT',
     notes: [
-      'Jake Archibald found that a fr→en translation of <scripte> becomes <script>. Chinese-to-English variants worked too.',
+      'Jake Archibald found that an fr→en translation of <scripte> becomes <script>. Chinese-to-English variants worked too.',
       'Never assign model output to innerHTML. Use textContent, or setHTML with a sanitizer / Trusted Types.',
       'The spec added a note via webmachinelearning/translation-api#60. This is why "text in, text out" matters.',
       'If the translator is unavailable, the demo shows the recorded output from the canned path.',
@@ -235,16 +251,16 @@ if (state === 'available') {
   },
   {
     id: 'decision',
-    kind: 'flow',
-    kicker: '14:30 · Decision framework',
-    title: 'When should you reach for built-in AI?',
-    seconds: 90,
-    body: [
-      'Sensitive data that must not leave the device?         → on-device',
-      'Need it to work offline or with no per-call cost?      → on-device',
-      'Narrow, repeatable job with a quality ceiling you can accept? → task API',
-      'Need world knowledge, big-model reasoning, or reach on Android/iOS? → cloud or hybrid',
-      'Unsupported browser or missing model? → polyfill or Firebase AI Logic fallback; degrade honestly.',
+    kind: 'decision',
+    kicker: 'Decision framework',
+    title: 'Reach for built-in AI when the constraints fit',
+    seconds: 110,
+    subtitle: 'Unsupported? Capability-check → fallback.',
+    branches: [
+      { q: 'Sensitive data?', a: 'On-device', tone: 'green' },
+      { q: 'Offline or no per-call cost?', a: 'On-device', tone: 'green' },
+      { q: 'Narrow, repeatable job?', a: 'Task API', tone: 'cyan' },
+      { q: 'World knowledge or mobile reach?', a: 'Cloud / hybrid', tone: 'violet' },
     ],
     notes: [
       'This is the enablement slide. They should be able to make a decision with it.',
@@ -255,43 +271,78 @@ if (state === 'available') {
   {
     id: 'poll',
     kind: 'poll',
-    kicker: '16:00 · Audience check',
+    kicker: 'Audience check',
     title: 'Where would you use it?',
     seconds: 60,
-    body: [
-      'A · Search / summarise private user content',
-      'B · Form filling and extraction',
-      'C · Multilingual UX',
-      'D · Not yet — I need mobile and broad reach',
+    cards: [
+      { n: 'A', title: 'Private search', sub: 'Summarise user content', tone: 'cyan' },
+      { n: 'B', title: 'Extraction', sub: 'Forms and receipts', tone: 'violet' },
+      { n: 'C', title: 'Multilingual UX', sub: 'Detect + translate', tone: 'green' },
+      { n: 'D', title: 'Not yet', sub: 'I need mobile reach', tone: 'amber' },
     ],
     notes: [
-      'Hands up first. The QR panel is a placeholder for a real poll service; do not imply it works.',
+      'Hands up first. The QR panel was only a planning placeholder — do not show or imply a working poll service.',
       'Read the room: if most votes are D, spend a little more time on interop and hybrid.',
       'This is the mid-talk interaction beat; the fallback is that people shout a letter.',
     ],
   },
   {
-    id: 'interop',
-    kind: 'standards',
-    kicker: '17:00 · Interop and the standards fight',
-    title: 'Start with Chrome. Do not promise "coming soon".',
-    seconds: 90,
-    columns: [
+    id: 'projects',
+    kind: 'projects',
+    kicker: 'What people shipped',
+    title: 'The range is wider than “chatbot”',
+    seconds: 85,
+    projects: [
       {
-        head: 'Who',
-        rows: [
-          ['Mozilla', 'Negative on Translation API (standards-positions#1015). Objects to backend assumptions and wants DOM-tree translation; Bergamot powers Firefox translation today.'],
-          ['WebKit', 'No position (standards-positions#339, open since 2024). Concern: language-pack downloads enable XSLeak.'],
-          ['Mastodon', 'PRs #35369 / #35345 are waiting for two browser engines — a real example of the chicken-and-egg problem.'],
-          ['W3C', 'Web Machine Learning Community Group; Translation + Summarizer adopted by the WebML WG.'],
-        ],
+        title: 'EduAdapt',
+        line: 'Any page rewritten for dyslexia or ADHD',
+        tag: 'Accessibility',
+        tone: 'cyan',
+      },
+      {
+        title: 'Pet Shelter App',
+        line: 'Photo → profile → translated adoption story',
+        tag: 'Multimodal',
+        tone: 'green',
+      },
+      {
+        title: 'The Turing Werewolf',
+        line: 'Local agents debate, accuse and deceive',
+        tag: 'Play',
+        tone: 'violet',
+      },
+      {
+        title: 'Nutshell',
+        line: 'Hands-free browsing with head and mouth movements',
+        tag: 'Assistive',
+        tone: 'amber',
       },
     ],
-    body: [
-      'Ship with capability detection and a fallback. Interop is a business decision, not just a browser checkbox.',
+    notes: [
+      'Source: Google Chrome Built-in AI Challenge 2025 project gallery, googlechromeai2025.devpost.com/project-gallery. These are real winners, not hypotheticals.',
+      'EduAdapt is a strong before/after story: privacy-friendly rewriting for students who need sustained support that schools cannot always provide.',
+      'Pet Shelter App is the cost/equity story: image + Prompt API + Writer + Proofreader + Translator, with graceful degradation so the form still works without AI.',
+      'The Turing Werewolf is the fun one: cloned Prompt API sessions, JSON schemas and structured turn-taking. Its own lesson was that LLMs need structure and constraints.',
+      'Nutshell is the accessibility endpoint: on-device AI as an input method, not a chatbot.',
+      'Use this slide to widen the room’s imagination before the interop reality check.',
+    ],
+  },
+  {
+    id: 'interop',
+    kind: 'cards',
+    kicker: 'Interop',
+    title: 'Start with Chrome. Do not promise “coming soon”.',
+    seconds: 95,
+    cards: [
+      { title: 'Mozilla', sub: 'Negative on Translation API', tag: '#1015', tone: 'red' },
+      { title: 'WebKit', sub: 'No position · XSLeak concern', tag: '#339', tone: 'amber' },
+      { title: 'Mastodon', sub: 'PRs wait for two engines', tag: '#35369', tone: 'violet' },
+      { title: 'W3C', sub: 'Web Machine Learning CG', tag: 'Standards', tone: 'green' },
     ],
     notes: [
       'Be honest: other engines will not catch up soon. Do not imply Safari or Firefox support is imminent.',
+      'Mozilla objects to backend assumptions in the spec and wants first-class DOM tree translation; Firefox uses Bergamot today.',
+      'WebKit’s concern is that language-pack downloads enable XSLeak attacks.',
       'The Mastodon PRs are a great "why this matters" story: server-side translation costs real money for admins.',
       'If time is short, this is the first slide to trim.',
     ],
@@ -299,39 +350,31 @@ if (state === 'available') {
   {
     id: 'cloud',
     kind: 'code',
-    kicker: '18:30 · The honest comparison',
+    kicker: 'The honest comparison',
     title: 'On-device is a constraint, not a religion',
-    seconds: 30,
-    code: `// Good default: try local, fall back deliberately
-if (await Summarizer.availability(opts) === 'available') {
+    seconds: 35,
+    code: `if (await Summarizer.availability(opts) === 'available') {
   return summarizeOnDevice(session, text);
 }
 return summarizeWithCloudApi(text);   // or a polyfill`,
-    body: [
-      'Wins: privacy, no per-call cost, offline, low warm latency.',
-      'Costs: model download, disk and RAM, quality ceiling, limited platform reach.',
-    ],
     notes: [
-      'Keep this to 30 seconds. It is the logical conclusion of the decision slide.',
+      'Keep this to 35 seconds. It is the logical conclusion of the decision slide.',
+      'Wins: privacy, no per-call cost, offline, low warm latency. Costs: download, disk, RAM, quality ceiling, limited reach.',
     ],
   },
   {
     id: 'close',
     kind: 'close',
-    kicker: '19:00 · Close',
+    kicker: 'Close',
     title: 'The browser is becoming a runtime for AI',
-    seconds: 60,
-    body: [
-      'Four jobs: understand · condense · extract · write.',
-      'One shape: availability() → create() → call().',
-      'One rule: design the unsupported state first.',
-      'Next teaser: WebMCP — register tools with the browser; agents call them with a human in the loop.',
-      'The deck and demos are public. Take the code, not just the ideas.',
-    ],
+    seconds: 100,
+    subtitle: 'Next: WebMCP — apps expose tools to agents, with a human in the loop.',
+    takeaways: ['Four jobs', 'One shape', 'Design the unsupported state first'],
     notes: [
-      'Point at the QR / repo URL on the final slide (the repo URL can be added once published).',
-      'End exactly at 20:00 so the 5-minute mobile Q&A fits inside the 25-minute slot.',
-      'If Q&A is inside the 25 and you are behind, cut the interop slide or the injection demo before cutting Q&A.',
+      'Point at the repo URL on the final slide once published.',
+      'End the content at 25:00 so the 5-minute mobile Q&A fits inside the 30-minute slot.',
+      'If behind, cut the interop slide or the injection demo before cutting Q&A.',
+      'The deck and demos are public. Take the code, not just the ideas.',
     ],
   },
 ];

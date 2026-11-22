@@ -1,6 +1,7 @@
 import { h } from '../demos/shared/dom';
 import { prewarm, setKeynoteMode, keynoteMode, formatMs } from '../demos/shared/ai';
-import { slides, TOTAL_PLANNED, type Slide } from './slides';
+import { slides, TOTAL_PLANNED, type Card, type Slide } from './slides';
+import { DeckSync, clock, type DeckState, type Message, type PresenterCommand, type ReadinessTone } from './sync';
 import './style.css';
 
 function q<T extends Element>(selector: string): T {
@@ -9,67 +10,111 @@ function q<T extends Element>(selector: string): T {
   return element;
 }
 
-function clock(totalSeconds: number): string {
-  const safe = Math.max(0, Math.round(totalSeconds));
-  return `${String(Math.floor(safe / 60)).padStart(2, '0')}:${String(safe % 60).padStart(2, '0')}`;
-}
-
 const app = q<HTMLDivElement>('.app');
-
-const brand = h('div', { class: 'brand', text: 'Built-In AI in the Browser' });
-const readiness = h('div', { class: 'readiness', text: 'model: checking…' });
-const warmButton = h('button', { class: 'ctrl', type: 'button', text: 'Warm model', style: 'display:none' });
-const clockEl = h('div', { class: 'clock', text: '00:00' });
-const presenterButton = h('button', { class: 'ctrl', type: 'button', text: 'Presenter  P' });
-const keynoteButton = h('button', {
-  class: `ctrl ${keynoteMode() ? 'on' : ''}`.trim(),
-  type: 'button',
-  text: `Keynote: ${keynoteMode() ? 'ON' : 'OFF'}  K`,
-});
-const top = h('header', { class: 'top' }, brand, h('div', { class: 'spacer' }), readiness, warmButton, clockEl, presenterButton, keynoteButton);
-
 const stage = h('main', { class: 'stage' });
-const notesPanel = h('aside', { class: 'notes' });
+const drawer = h('aside', { class: 'drawer', 'aria-label': 'Presenter controls' });
+app.append(stage, drawer);
 
-const prevButton = h('button', { class: 'ctrl', type: 'button', text: '← Prev' });
-const nextButton = h('button', { class: 'ctrl', type: 'button', text: 'Next →' });
-const progressFill = h('i');
-const progress = h('div', { class: 'progress' }, progressFill);
-const count = h('div', { class: 'count', text: `1 / ${slides.length}` });
-const bottom = h('footer', { class: 'bottom' }, prevButton, nextButton, progress, count);
-const hint = h('div', { class: 'hint', text: '← → navigate · P presenter · K keynote · F fullscreen' });
+let index = 0;
+let talkStart: number | null = null;
+let drawerClock: HTMLElement | null = null;
+let readiness = 'Model: checking…';
+let readinessTone: ReadinessTone = 'muted';
+let drawerNote = '';
 
-app.append(top, stage, notesPanel, bottom, hint);
+const sync = new DeckSync('audience', (message: Message) => {
+  if (message.source === 'presenter') handleCommand(message.command);
+});
 
-function columnsBlock(slide: Slide): HTMLElement {
-  const cols = (slide.columns ?? []).map((column) => {
-    const table = h('table');
-    for (const row of column.rows) {
-      table.append(h('tr', {}, ...row.map((cell) => h('td', { text: cell }))));
-    }
-    return h('div', { class: 'card' }, h('h3', { text: column.head }), table);
-  });
-  const wrapper = h('div', { class: `cols ${cols.length <= 1 ? 'one' : ''}`.trim() }, ...cols);
-  return wrapper;
+function elapsedSeconds(): number {
+  return talkStart === null ? 0 : (performance.now() - talkStart) / 1000;
 }
 
-function bodyBlock(slide: Slide, ordered = false): HTMLElement {
-  const list = h(ordered ? 'ol' : 'ul');
-  for (const line of slide.body ?? []) list.append(h('li', { text: line }));
-  return list;
+function currentState(): DeckState {
+  return {
+    index,
+    elapsed: elapsedSeconds(),
+    running: talkStart !== null,
+    canned: keynoteMode(),
+    readiness,
+    readinessTone,
+    updatedAt: Date.now(),
+  };
+}
+
+function broadcast(): void {
+  sync.postState(currentState());
+}
+
+function cardNode(card: Card, position: number, variant: 'card' | 'poll' | 'status' | 'project'): HTMLElement {
+  const tone = card.tone ?? 'slate';
+  const node = h('article', { class: `${variant} tone-${tone}`, style: `--i:${position}` });
+
+  if (variant === 'project') {
+    node.append(h('span', { class: 'tag', text: card.tag ?? '' }));
+    node.append(h('h3', { text: card.title }));
+    if (card.sub) node.append(h('p', { text: card.sub }));
+    return node;
+  }
+
+  const top = h('div', { class: 'card-top' });
+  if (card.n) top.append(h('span', { class: variant === 'poll' ? 'letter' : 'num', text: card.n }));
+  else if (card.glyph) top.append(h('span', { class: 'glyph', text: card.glyph }));
+  else top.append(h('span', { class: 'dot' }));
+  if (card.tag) top.append(h('span', { class: 'tag', text: card.tag }));
+  node.append(top);
+  node.append(h('h3', { text: card.title }));
+  if (card.sub) node.append(h('p', { text: card.sub }));
+  return node;
+}
+
+function renderCards(slide: Slide): HTMLElement {
+  const grid = h('div', { class: 'grid', style: `--cols:${slide.cards?.length ?? 1}` });
+  for (const [position, card] of (slide.cards ?? []).entries()) {
+    grid.append(cardNode(card, position, slide.kind === 'poll' ? 'poll' : slide.kind === 'status' ? 'status' : 'card'));
+  }
+  return grid;
+}
+
+function renderProjects(slide: Slide): HTMLElement {
+  const grid = h('div', { class: 'grid projects', style: `--cols:${slide.projects?.length ?? 1}` });
+  for (const [position, card] of (slide.projects ?? []).entries()) {
+    grid.append(cardNode(card, position, 'project'));
+  }
+  return grid;
+}
+
+function renderStats(slide: Slide): HTMLElement {
+  const grid = h('div', { class: 'stats', style: `--cols:${slide.stats?.length ?? 1}` });
+  for (const [position, stat] of (slide.stats ?? []).entries()) {
+    const node = h('article', { class: `stat tone-${stat.tone ?? 'slate'}`, style: `--i:${position}` });
+    node.append(h('div', { class: 'value', text: stat.value }));
+    node.append(h('div', { class: 'label', text: stat.label }));
+    if (stat.sub) node.append(h('div', { class: 'stat-sub', text: stat.sub }));
+    grid.append(node);
+  }
+  return grid;
+}
+
+function renderBranches(slide: Slide): HTMLElement {
+  const wrap = h('div', { class: 'branches' });
+  for (const [position, branch] of (slide.branches ?? []).entries()) {
+    const row = h('div', { class: `branch tone-${branch.tone ?? 'slate'}`, style: `--i:${position}` });
+    row.append(h('div', { class: 'question', text: branch.q }));
+    row.append(h('div', { class: 'arrow', text: '→' }));
+    row.append(h('div', { class: 'answer', text: branch.a }));
+    wrap.append(row);
+  }
+  return wrap;
 }
 
 function renderSlide(slide: Slide): HTMLElement {
   const node = h('section', { class: `slide ${slide.kind}` });
-  node.append(h('div', { class: 'kicker', text: slide.kicker }), h('h1', { text: slide.title }));
 
-  if (slide.kind === 'title') {
-    const sub = h('div', { class: 'sub' });
-    for (const line of slide.body ?? []) sub.append(h('p', { text: line }));
-    node.append(sub);
-    node.append(h('div', { class: 'body', text: 'Press → to start the talk. If the badge asks for it, click “Warm model” first.' }));
-    return node;
-  }
+  if (slide.kind === 'title') node.append(h('div', { class: 'orbit' }));
+  node.append(h('div', { class: 'kicker', text: slide.kicker }));
+  node.append(h('h1', { text: slide.title }));
+  if (slide.subtitle) node.append(h('p', { class: 'subtitle', text: slide.subtitle }));
 
   if (slide.kind === 'demo' && slide.demo) {
     const iframe = h('iframe', {
@@ -78,67 +123,131 @@ function renderSlide(slide: Slide): HTMLElement {
       title: slide.title,
       allow: 'language-model; translator; language-detector; summarizer; writer; rewriter; proofreader',
     });
-    const note = h('div', { class: 'demo-note' },
-      h('span', { text: `${slide.demoNote}   ` }),
-      h('a', { href: slide.demo, target: '_blank', rel: 'noopener', text: 'open demo ↗' }),
-    );
-    node.append(h('div', { class: 'demo-wrap' }, iframe, note));
+    const label = h('div', { class: 'demo-label' }, h('i'), h('span', { text: slide.demoLabel ?? 'LIVE DEMO' }));
+    node.append(h('div', { class: 'demo-wrap' }, label, iframe));
     return node;
   }
 
   if (slide.kind === 'code') {
-    const split = h('div', { class: 'split code-split' },
-      h('pre', { class: 'code', text: slide.code ?? '' }),
-      h('div', { class: 'body' }, bodyBlock(slide)),
-    );
-    node.append(split);
+    node.append(h('pre', { class: 'code', text: slide.code ?? '' }));
     return node;
   }
 
-  if (slide.kind === 'poll') {
-    const options = h('div', { class: 'poll-grid' });
-    for (const line of slide.body ?? []) {
-      options.append(h('div', { class: 'card poll-option', text: line }));
-    }
-    const qr = h('div', { class: 'qr', title: 'Placeholder — not wired to a poll service' });
-    const note = h('div', { class: 'body', text: 'Hands up is the real interaction. The QR panel is a placeholder for a poll service.' });
-    node.append(h('div', { class: 'split' }, options, h('div', {}, qr, note)));
+  if (slide.kind === 'cards' || slide.kind === 'status' || slide.kind === 'poll') {
+    node.append(renderCards(slide));
     return node;
   }
 
-  if (slide.kind === 'flow') {
-    node.append(bodyBlock(slide, true));
+  if (slide.kind === 'projects') {
+    node.append(renderProjects(slide));
+    return node;
+  }
+
+  if (slide.kind === 'metrics') {
+    node.append(renderStats(slide));
+    return node;
+  }
+
+  if (slide.kind === 'decision') {
+    node.append(renderBranches(slide));
     return node;
   }
 
   if (slide.kind === 'close') {
-    const list = h('ul');
-    for (const line of slide.body ?? []) list.append(h('li', { text: line }));
-    node.append(h('div', { class: 'body' }, list));
+    const wrap = h('div', { class: 'takeaways' });
+    for (const [position, text] of (slide.takeaways ?? []).entries()) {
+      wrap.append(h('div', { class: 'takeaway', style: `--i:${position}`, text }));
+    }
+    node.append(wrap);
     return node;
   }
 
-  const split = h('div', { class: 'split' }, columnsBlock(slide), h('div', { class: 'body' }, bodyBlock(slide)));
-  node.append(split);
   return node;
 }
 
-function renderNotes(slide: Slide, index: number): void {
+function ctrl(label: string, onClick: () => void, extraClass = ''): HTMLButtonElement {
+  const node = h('button', { class: `ctrl ${extraClass}`.trim(), type: 'button', text: label });
+  node.addEventListener('click', onClick);
+  return node;
+}
+
+function renderDrawer(): void {
+  const slide = slides[index]!;
   const next = slides[index + 1];
-  const list = h('ul');
-  for (const line of slide.notes) list.append(h('li', { text: line }));
-  notesPanel.replaceChildren(
-    h('h3', { text: 'Speaker notes' }),
-    h('div', { class: 'meta', text: `${slide.kicker} · ${clock(slide.seconds)} planned` }),
-    list,
+  drawerClock = h('div', { class: `drawer-clock ${elapsedSeconds() > TOTAL_PLANNED ? 'over' : ''}`.trim(), text: clock(elapsedSeconds()) });
+
+  const notes = h('ul');
+  for (const line of slide.notes) notes.append(h('li', { text: line }));
+
+  const warm = ctrl(readinessTone === 'ok' ? 'Model warm' : 'Warm model', () => void warmNow(), readinessTone === 'ok' ? 'done' : '');
+  warm.disabled = readinessTone === 'ok';
+
+  drawer.replaceChildren(
+    h('div', { class: 'drawer-head' }, h('span', { text: 'Presenter' }), ctrl('Close  Esc', () => toggleDrawer(false))),
+    drawerClock,
+    h('div', { class: 'drawer-meta', text: `${index + 1} / ${slides.length} · ${clock(slide.seconds)} planned` }),
+    h('h3', { text: 'Notes' }),
+    notes,
     h('h3', { text: 'Next' }),
-    h('div', { class: 'meta', text: next ? `${next.kicker} — ${next.title}` : 'End of content · 5 min Q&A' }),
-    h('div', { class: 'meta', text: `Total planned: ${clock(TOTAL_PLANNED)} · Q&A: 05:00` }),
+    h('div', { class: 'next', text: next ? `${next.kicker} — ${next.title}` : 'End of content · 5 min Q&A' }),
+    h('div', { class: 'readiness', text: readiness }),
+    h('div', { class: 'drawer-controls' },
+      ctrl('← Prev', () => go(index - 1)),
+      ctrl('Next →', () => go(index + 1)),
+    ),
+    h('div', { class: 'drawer-controls' },
+      ctrl(`Canned output: ${keynoteMode() ? 'ON' : 'OFF'}`, () => toggleCanned(), keynoteMode() ? 'warn' : ''),
+      warm,
+    ),
+    h('p', { class: 'drawer-tip', text: 'Canned output uses recorded demo results when the model is unavailable or slow.' }),
+    ctrl('Open presenter window  W', () => void openPresenterWindow()),
+    ...(drawerNote ? [h('p', { class: 'drawer-note', text: drawerNote })] : []),
+    h('p', { class: 'drawer-shortcuts', text: '← → navigate · K canned · F fullscreen · P presenter · W window' }),
   );
 }
 
-let index = 0;
-let talkStart: number | null = null;
+function toggleDrawer(force?: boolean): void {
+  const open = force ?? !document.body.classList.contains('presenter');
+  document.body.classList.toggle('presenter', open);
+  if (open) renderDrawer();
+}
+
+async function openPresenterWindow(): Promise<void> {
+  const win = window.open('./presenter.html', 'builtin-ai-presenter', 'width=1180,height=820');
+  if (!win) {
+    drawerNote = 'Popup blocked. Allow popups for this site, or use the drawer on this display.';
+    renderDrawer();
+  } else {
+    drawerNote = '';
+    renderDrawer();
+    broadcast();
+  }
+}
+
+function toggleCanned(): void {
+  const enabled = !keynoteMode();
+  setKeynoteMode(enabled);
+  const iframe = stage.querySelector<HTMLIFrameElement>('iframe.demo');
+  if (iframe) iframe.src = iframe.src;
+  renderDrawer();
+  broadcast();
+}
+
+function applyPrewarm(result: { status: 'unsupported' | 'warm' | 'failed'; detail: string }): void {
+  const ms = Number(result.detail.match(/(\d+)ms/)?.[1] ?? 0);
+  readiness = result.status === 'warm' ? `Model warm · ${formatMs(ms)}` : `Model ${result.status} · ${result.detail}`;
+  readinessTone = result.status === 'warm' ? 'ok' : result.status === 'failed' ? 'bad' : 'muted';
+  renderDrawer();
+  broadcast();
+}
+
+async function warmNow(): Promise<void> {
+  readiness = 'Model warming — first token can take ~20s on this laptop';
+  readinessTone = 'muted';
+  renderDrawer();
+  broadcast();
+  applyPrewarm(await prewarm());
+}
 
 function go(next: number): void {
   const target = Math.min(Math.max(next, 0), slides.length - 1);
@@ -151,35 +260,20 @@ function go(next: number): void {
   rendered.classList.add('enter');
   stage.replaceChildren(rendered);
   requestAnimationFrame(() => rendered.classList.remove('enter'));
-  renderNotes(slide, index);
-  count.textContent = `${index + 1} / ${slides.length}`;
-  progressFill.style.width = `${((index + 1) / slides.length) * 100}%`;
+
   history.replaceState(null, '', `#/${slide.id}`);
-  updateClock();
+  renderDrawer();
+  broadcast();
 }
 
-function updateClock(): void {
-  const elapsed = talkStart === null ? 0 : (performance.now() - talkStart) / 1000;
-  clockEl.textContent = clock(elapsed);
-  clockEl.classList.toggle('over', elapsed > TOTAL_PLANNED);
+function handleCommand(command: PresenterCommand): void {
+  if (command.action === 'next') go(index + 1);
+  else if (command.action === 'prev') go(index - 1);
+  else if (command.action === 'goto') go(command.index);
+  else if (command.action === 'canned') {
+    if (keynoteMode() !== command.enabled) toggleCanned();
+  } else if (command.action === 'warm') void warmNow();
 }
-
-nextButton.addEventListener('click', () => go(index + 1));
-prevButton.addEventListener('click', () => go(index - 1));
-
-presenterButton.addEventListener('click', () => {
-  document.body.classList.toggle('presenter');
-  presenterButton.classList.toggle('on', document.body.classList.contains('presenter'));
-});
-
-keynoteButton.addEventListener('click', () => {
-  const enabled = !keynoteMode();
-  setKeynoteMode(enabled);
-  keynoteButton.textContent = `Keynote: ${enabled ? 'ON' : 'OFF'}  K`;
-  keynoteButton.classList.toggle('on', enabled);
-  const iframe = stage.querySelector<HTMLIFrameElement>('iframe.demo');
-  if (iframe) iframe.src = iframe.src;
-});
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') {
@@ -193,38 +287,28 @@ window.addEventListener('keydown', (event) => {
   } else if (event.key === 'End') {
     go(slides.length - 1);
   } else if (event.key.toLowerCase() === 'p') {
-    presenterButton.click();
+    toggleDrawer();
+  } else if (event.key.toLowerCase() === 'w') {
+    void openPresenterWindow();
   } else if (event.key.toLowerCase() === 'k') {
-    keynoteButton.click();
+    toggleCanned();
   } else if (event.key.toLowerCase() === 'f') {
     if (document.fullscreenElement) void document.exitFullscreen();
     else void document.documentElement.requestFullscreen();
+  } else if (event.key === 'Escape') {
+    toggleDrawer(false);
   }
 });
 
 const initialId = location.hash.replace(/^#\/?/, '');
 const initialIndex = slides.findIndex((slide) => slide.id === initialId);
 go(initialIndex >= 0 ? initialIndex : 0);
-window.setInterval(updateClock, 500);
-
-function applyPrewarm(result: { status: 'unsupported' | 'warm' | 'failed'; detail: string }): void {
-  const ms = Number(result.detail.match(/(\d+)ms/)?.[1] ?? 0);
-  readiness.textContent = result.status === 'warm'
-    ? `model: warm · ${formatMs(ms)}`
-    : `model: ${result.status} · ${result.detail}`;
-  readiness.style.color = result.status === 'warm' ? 'var(--ok)' : result.status === 'failed' ? 'var(--bad)' : 'var(--muted)';
-  warmButton.style.display = result.status === 'warm' ? 'none' : '';
-}
-
-warmButton.addEventListener('click', () => {
-  warmButton.disabled = true;
-  warmButton.textContent = 'Warming…';
-  readiness.textContent = 'model: warming — first token can take ~20s on this laptop';
-  void prewarm().then((result) => {
-    applyPrewarm(result);
-    warmButton.textContent = 'Warm model';
-    warmButton.disabled = false;
-  });
-});
-
 void prewarm().then(applyPrewarm);
+
+window.setInterval(() => {
+  if (drawerClock) {
+    drawerClock.textContent = clock(elapsedSeconds());
+    drawerClock.classList.toggle('over', elapsedSeconds() > TOTAL_PLANNED);
+  }
+  broadcast();
+}, 500);

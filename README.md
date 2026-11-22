@@ -1,6 +1,8 @@
 # Built-In AI in the Browser — talk deck
 
-A 25-minute conference talk built as a web page. 20 minutes of content, 5 minutes of mobile Q&A. The deck runs real browser built-in AI APIs in iframes and degrades honestly when they are unavailable.
+A 30-minute session: **25 minutes of content + 5 minutes of Q&A**. Built as a web page so the demos are the argument. The deck runs real browser built-in AI APIs in iframes and degrades honestly when they are unavailable.
+
+The **audience view is clean**: no top bar, progress bar, timer, notes, or navigation controls. Speaker material lives in a hidden drawer and an optional synced presenter window.
 
 ## Run it
 
@@ -22,13 +24,25 @@ npm run preview   # serve dist/
 | --- | --- |
 | `←` `→`, `Space`, `PageUp` / `PageDown` | Navigate slides |
 | `Home` / `End` | First / last slide |
-| `P` | Presenter view (speaker notes, next slide, planned time) |
-| `K` | Keynote mode — canned output in every demo, labelled as recorded |
+| `P` | Toggle the hidden presenter drawer on this display |
+| `W` | Open the synced presenter window |
+| `K` | Toggle **Canned output**: recorded demo results when the model is unavailable or slow |
 | `F` | Fullscreen |
+| `Esc` | Close the presenter drawer |
+
+### What “Canned output” means
+
+It is the old “keynote mode”, renamed because the old label was unclear. When ON, every demo shows recorded output captured from this same browser and says so on screen. Use it if the model is missing, still downloading, or too slow on venue Wi-Fi. It is a **fallback, not the default**.
+
+## Presenting with one display vs two
+
+- **Two displays / extended desktop:** press `W` and move `presenter.html` to the speaker screen. It shows notes, next slide, timer, model readiness, and navigation, and stays in sync with the audience deck.
+- **Duplicated display (projector mirrors the laptop):** do **not** open the presenter window — it would appear on the projector too. Keep the deck clean, navigate with the keyboard, and open the drawer with `P` only between beats when you need a quick note.
+- **No usable speaker screen at all:** bring the speaker notes on a phone or paper using [`docs/talk-outline.md`](docs/talk-outline.md). The audience view never exposes them.
 
 ## Before the talk
 
-1. Open the deck ~5 minutes early. Chrome requires a user gesture for the first model download, so click **Warm model** in the top bar if the badge asks for it; `model: warm` confirms it finished.
+1. Open the deck ~5 minutes early. Press `P` and check model readiness in the drawer. Chrome requires a user gesture for the first model download, so click **Warm model** there if needed.
 2. Visit `demos/00-capabilities/index.html` → **Run all capability probes** → **Copy JSON**. This records what the machine can actually do.
 3. In Chrome, check `chrome://on-device-internals`. Performance Class and the model state are the two things that matter.
 4. Keep ≈22 GB free on the Chrome profile volume. A model stuck at `downloading` with no error almost always means low disk space; provisioning took ~7.5 minutes on the demo laptop.
@@ -39,9 +53,13 @@ Full run of show: [`docs/talk-outline.md`](docs/talk-outline.md).
 ## Layout
 
 ```
-index.html                 deck entry
-deck/slides.ts             slide content, timings, speaker notes
-deck/main.ts               renderer, navigation, presenter view, pre-warm
+index.html                 audience deck entry
+presenter.html             synced presenter window
+deck/slides.ts             visual slide content, timings, speaker notes
+deck/main.ts               clean renderer, navigation, hidden drawer
+deck/sync.ts               BroadcastChannel + localStorage sync
+deck/style.css             audience deck + drawer styles
+presenter/                 presenter window UI and styles
 demos/shared/              API wrappers, timing helpers, synthetic data, styles
 demos/00-capabilities/     probe every API + image modality, copy JSON
 demos/01-hello/            cold open: detect → translate → summarize
@@ -59,6 +77,11 @@ docs/                      research notes, outline, decisions
 - Trigger model downloads from a user gesture; pre-warm once per browser session.
 - Put API output into the DOM with `textContent`, never `innerHTML`.
 - Every demo checks `keynoteMode()` and falls back to clearly-labelled canned output.
+- No timing, navigation, or speaker text is rendered in the audience view.
+
+## Hackathon inspiration
+
+The “What people shipped” beat uses real winners from the [Google Chrome Built-in AI Challenge 2025 gallery](https://googlechromeai2025.devpost.com/project-gallery): EduAdapt, Pet Shelter App, The Turing Werewolf, and Nutshell. Sources and lessons are in [`docs/research-notes.md`](docs/research-notes.md).
 
 ## Deploy to GitHub Pages
 
