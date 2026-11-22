@@ -92,8 +92,22 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
   z-index: 1;
 }
 .slide.title h1 { max-width: 12ch; font-size: clamp(52px, 8vw, 112px); }
+.slide.title .subtitle { max-width: 34ch; font-size: clamp(16px, 1.8vw, 28px); color: #c9d8f0; }
 .slide.title .takeaways { flex: 0; margin-top: clamp(12px, 2vw, 28px); }
 .slide.title .takeaway { font-size: clamp(16px, 1.8vw, 28px); padding: 14px 24px; }
+.title-visual {
+  position: absolute;
+  right: clamp(20px, 4vw, 64px);
+  top: 50%;
+  transform: translateY(-48%);
+  width: min(46vw, 560px);
+  z-index: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 24px 60px rgba(0,0,0,.35));
+}
+.title-art { width: 100%; height: auto; display: block; }
+:root[data-theme="light"] .title-art rect[fill="url(#tbg)"] { filter: brightness(1.02); }
+:root[data-theme="light"] .slide.title .subtitle { color: #38506f; }
 .title-author {
   position: absolute;
   right: var(--pad);
@@ -419,4 +433,6 @@ body.presenter .drawer { transform: none; }
   .flow-node { grid-template-columns: auto 1fr; padding: 12px 14px; }
   .flow-q { font-size: 16px; }
   .flow-a { font-size: 12px; }
+  .title-visual { position: relative; right: auto; top: auto; transform: none; width: min(100%, 520px); margin: 10px 0 0; }
+  .slide.title h1 { max-width: 14ch; }
 }

@@ -156,6 +156,71 @@ function applyCodeStep(node: HTMLElement, slide: Slide, step: number): void {
   if (hint) hint.textContent = steps.length ? `Step ${step + 1}/${steps.length} · ← →` : '';
 }
 
+function renderTitleVisual(): HTMLElement {
+  const ns = 'http://www.w3.org/2000/svg';
+  const s = (tag: string, attrs: Record<string, string>) => {
+    const el = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+  const t = (tag: string, attrs: Record<string, string>, text: string) => {
+    const el = s(tag, attrs);
+    el.textContent = text;
+    return el;
+  };
+
+  const svg = s('svg', { viewBox: '0 0 560 360', class: 'title-art', role: 'img', 'aria-label': 'Browser with on-device AI capabilities' });
+  const defs = s('defs', {});
+  const glow = s('linearGradient', { id: 'tg', x1: '0', y1: '0', x2: '1', y2: '1' });
+  glow.append(s('stop', { offset: '0%', 'stop-color': '#67e8f9', 'stop-opacity': '.9' }), s('stop', { offset: '100%', 'stop-color': '#a78bfa', 'stop-opacity': '.9' }));
+  const bg = s('linearGradient', { id: 'tbg', x1: '0', y1: '0', x2: '0', y2: '1' });
+  bg.append(s('stop', { offset: '0%', 'stop-color': '#18253f', 'stop-opacity': '.95' }), s('stop', { offset: '100%', 'stop-color': '#0d1628', 'stop-opacity': '.95' }));
+  defs.append(glow, bg);
+  svg.append(defs);
+
+  // browser window
+  svg.append(s('rect', { x: '40', y: '36', width: '320', height: '220', rx: '18', fill: 'url(#tbg)', stroke: 'rgba(148,178,224,.28)', 'stroke-width': '1.5' }));
+  svg.append(s('rect', { x: '40', y: '36', width: '320', height: '34', rx: '18', fill: 'rgba(255,255,255,.04)' }));
+  svg.append(s('rect', { x: '40', y: '54', width: '320', height: '16', fill: 'rgba(255,255,255,.04)' }));
+  ['#ff8a8a', '#fcd34d', '#6ee7b7'].forEach((c, i) => svg.append(s('circle', { cx: String(62 + i * 18), cy: '53', r: '5', fill: c, 'fill-opacity': '.85' })));
+  svg.append(s('rect', { x: '128', y: '45', width: '150', height: '16', rx: '8', fill: 'rgba(148,178,224,.12)', stroke: 'rgba(148,178,224,.16)' }));
+  svg.append(t('text', { x: '203', y: '57', 'text-anchor': 'middle', fill: '#9fb0cf', 'font-size': '9', 'font-family': 'ui-monospace,monospace' }, 'localhost / on-device'));
+
+  // on-device chip inside browser
+  svg.append(s('rect', { x: '80', y: '105', width: '240', height: '118', rx: '16', fill: 'rgba(103,232,249,.05)', stroke: 'url(#tg)', 'stroke-width': '1.5' }));
+  svg.append(s('rect', { x: '152', y: '122', width: '96', height: '28', rx: '14', fill: 'rgba(103,232,249,.14)', stroke: 'rgba(103,232,249,.45)' }));
+  svg.append(t('text', { x: '200', y: '140', 'text-anchor': 'middle', fill: '#67e8f9', 'font-size': '11', 'font-weight': '700', 'font-family': 'ui-monospace,monospace' }, 'Gemini Nano'));
+  svg.append(t('text', { x: '200', y: '168', 'text-anchor': 'middle', fill: '#dbe7ff', 'font-size': '10', 'font-family': 'Inter,system-ui,sans-serif' }, 'Runs locally in the browser'));
+  svg.append(t('text', { x: '200', y: '186', 'text-anchor': 'middle', fill: '#9fb0cf', 'font-size': '9', 'font-family': 'Inter,system-ui,sans-serif' }, 'private · low latency · offline'));
+  // shield
+  svg.append(s('path', { d: 'M200 196 l14 5 v10c0 9-6 14-14 18-8-4-14-9-14-18v-10z', fill: 'rgba(110,231,183,.12)', stroke: 'rgba(110,231,183,.65)', 'stroke-width': '1.2' }));
+  svg.append(s('path', { d: 'M195 211 l4 4 7-8', fill: 'none', stroke: '#6ee7b7', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+
+  // capability nodes
+  const caps: Array<[string, string, number, number, string]> = [
+    ['Detect', 'Lang', 430, 56, '#67e8f9'],
+    ['Translate', 'API', 430, 118, '#a78bfa'],
+    ['Summarize', 'API', 430, 180, '#6ee7b7'],
+    ['Prompt', 'API', 430, 242, '#fcd34d'],
+  ];
+  caps.forEach(([label, sub, x, y, c]) => {
+    svg.append(s('line', { x1: '360', y1: String(146 + (y - 149) * 0.25), x2: String(x - 8), y2: String(y + 18), stroke: c, 'stroke-opacity': '.28', 'stroke-width': '1.5' }));
+    svg.append(s('rect', { x: String(x), y: String(y), width: '100', height: '40', rx: '12', fill: 'rgba(17,27,48,.72)', stroke: c, 'stroke-opacity': '.45', 'stroke-width': '1.2' }));
+    svg.append(t('text', { x: String(x + 50), y: String(y + 17), 'text-anchor': 'middle', fill: '#eef3ff', 'font-size': '11', 'font-weight': '650', 'font-family': 'Inter,system-ui,sans-serif' }, label));
+    svg.append(t('text', { x: String(x + 50), y: String(y + 30), 'text-anchor': 'middle', fill: c, 'font-size': '8.5', 'font-family': 'ui-monospace,monospace' }, sub));
+  });
+
+  // no cloud badge
+  svg.append(s('rect', { x: '68', y: '286', width: '126', height: '30', rx: '15', fill: 'rgba(110,231,183,.08)', stroke: 'rgba(110,231,183,.35)' }));
+  svg.append(t('text', { x: '131', y: '305', 'text-anchor': 'middle', fill: '#6ee7b7', 'font-size': '10', 'font-weight': '600', 'font-family': 'Inter,system-ui,sans-serif' }, 'No API key'));
+  svg.append(s('rect', { x: '204', y: '286', width: '126', height: '30', rx: '15', fill: 'rgba(103,232,249,.08)', stroke: 'rgba(103,232,249,.35)' }));
+  svg.append(t('text', { x: '267', y: '305', 'text-anchor': 'middle', fill: '#67e8f9', 'font-size': '10', 'font-weight': '600', 'font-family': 'Inter,system-ui,sans-serif' }, 'No server round-trip'));
+
+  const wrap = h('div', { class: 'title-visual' });
+  wrap.append(svg);
+  return wrap;
+}
+
 function renderSlide(slide: Slide): HTMLElement {
   const node = h('section', { class: `slide ${slide.kind}` });
 
@@ -231,6 +296,9 @@ function renderSlide(slide: Slide): HTMLElement {
   }
 
   if (slide.kind === 'title') {
+    if (slide.id === 'title') {
+      node.append(renderTitleVisual());
+    }
     if ((slide.id === 'title' || slide.id === 'thanks') && slide.takeaways?.[0]) {
       node.append(h('div', { class: 'title-author', text: slide.takeaways[0] }));
     } else if (slide.takeaways?.length) {
