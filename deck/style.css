@@ -68,6 +68,16 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
 .slide.title h1 { max-width: 12ch; font-size: clamp(52px, 8vw, 112px); }
 .slide.title .takeaways { flex: 0; margin-top: clamp(12px, 2vw, 28px); }
 .slide.title .takeaway { font-size: clamp(16px, 1.8vw, 28px); padding: 14px 24px; }
+.title-author {
+  position: absolute;
+  right: var(--pad);
+  bottom: var(--pad);
+  z-index: 2;
+  color: #dbe6ff;
+  font-size: clamp(14px, 1.4vw, 22px);
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
 .slide.demo h1 { max-width: none; font-size: clamp(30px, 3.8vw, 56px); }
 .slide.status h1, .slide.projects h1 { font-size: clamp(32px, 4.4vw, 62px); }
 

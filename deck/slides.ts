@@ -29,6 +29,11 @@ export type Project = {
   tone?: Tone;
 };
 
+export type SlideLink = {
+  label: string;
+  url: string;
+};
+
 export type Slide = {
   id: string;
   kind: 'title' | 'demo' | 'cards' | 'status' | 'code' | 'metrics' | 'decision' | 'poll' | 'projects' | 'close';
@@ -44,6 +49,7 @@ export type Slide = {
   code?: string;
   demo?: string;
   demoLabel?: string;
+  links?: SlideLink[];
   notes: string[];
 };
 
@@ -58,6 +64,10 @@ export const slides: Slide[] = [
     seconds: 15,
     subtitle: 'Practical capabilities for modern web apps',
     takeaways: ['Piyush Gupta'],
+    links: [
+      { label: 'Chrome built-in AI docs', url: 'https://developer.chrome.com/docs/ai/built-in' },
+      { label: 'WebML Community Group', url: 'https://webmachinelearning.github.io/' },
+    ],
     notes: [
       'Open the deck early. The audience view is intentionally clean — no controls, no timer, no badges.',
       'The first model download needs a user gesture. If the presenter panel says the model is not warm, click Warm model before starting.',
@@ -137,6 +147,10 @@ export const slides: Slide[] = [
       { title: 'Firefox', sub: 'Negative on the spec', tag: 'No built-in APIs', tone: 'red' },
       { title: 'Safari', sub: 'No position yet', tag: 'No built-in APIs', tone: 'red' },
     ],
+    links: [
+      { label: 'Chrome built-in AI status', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
+      { label: 'Edge Prompt API docs', url: 'https://learn.microsoft.com/en-us/microsoft-edge/web-platform/prompt-api' },
+    ],
     notes: [
       'Read the hardware line out loud. Desktop only: no Android, no iOS. ChromeOS only on Chromebook Plus.',
       'Rehearsal fact: the model sat at "downloading" with no error until 22 GB of free space existed; provisioning then took about 7.5 minutes.',
@@ -149,42 +163,55 @@ export const slides: Slide[] = [
     id: 'jobs',
     kind: 'cards',
     kicker: '',
-    title: 'Four jobs, not a feature list',
-    seconds: 70,
+    title: 'The built-in APIs at a glance',
+    seconds: 80,
+    subtitle: 'What each one does, when to use it, and how it helps.',
     cards: [
-      { glyph: '◎', title: 'Understand', sub: 'Detect + translate', tone: 'cyan' },
-      { glyph: '≡', title: 'Condense', sub: 'Summarize', tone: 'violet' },
-      { glyph: '{ }', title: 'Extract', sub: 'Schema-constrained output', tone: 'green' },
-      { glyph: '✎', title: 'Write', sub: 'Writer · Rewriter · Proofreader', tag: 'Trial', tone: 'amber' },
+      { glyph: '◎', title: 'Language Detector', sub: 'Detects language of text · use before translate or multilingual input · helps route/label content', tone: 'cyan' },
+      { glyph: '⇄', title: 'Translator', sub: 'Translates text between languages · use for local UI/content translation · helps privacy and offline UX', tone: 'green' },
+      { glyph: '≡', title: 'Summarizer', sub: 'Condenses long text into key points · use for reviews, notes, articles · helps users scan faster', tone: 'violet' },
+      { glyph: '{ }', title: 'Prompt API', sub: 'General prompting + structured output · use for extraction/classification/custom tasks · helps turn prose into typed data', tag: 'Most flexible', tone: 'amber' },
+      { glyph: '✎', title: 'Writer / Rewriter / Proofreader', sub: 'Draft, reshape, and polish text · use for writing assist · helps users edit without leaving page', tag: 'Origin trial', tone: 'slate' },
+    ],
+    links: [
+      { label: 'Built-in AI APIs overview', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
+      { label: 'Prompt API', url: 'https://developer.chrome.com/docs/ai/prompt-api' },
     ],
     notes: [
-      'How I arrived at these four: I mapped the stable/task APIs to user jobs, not API names. Detect+translate = understand input; summarize = condense; Prompt API + schema = extract/structure; Writer/Rewriter/Proofreader = write. The Prompt API can do more, but this framing helps pick the smallest useful capability.',
-      'This corrects the abstract: a review section is one instance of "condense", not the thesis of the talk.',
-      'Ask the room: which of these four jobs do you have in your own product?',
+      'Be transparent: “four jobs” was my earlier framing for the talk narrative. The APIs themselves are the real source of truth; this slide covers them directly.',
+      'Language Detector/Translator: narrow, great for multilingual UX. Summarizer: narrow task-specific model, good for condensing. Prompt API: most flexible; use responseConstraint for structured extraction. Writer/Rewriter/Proofreader: writing-assist APIs, currently origin trial / check availability.',
+      'Rule of thumb: prefer the narrowest API that fits the job. Use Prompt API when the task is custom or needs schema-constrained output.',
     ],
   },
   {
     id: 'shape',
     kind: 'code',
     kicker: '',
-    title: 'availability() → create() → call()',
+    title: 'One shape across APIs',
     seconds: 70,
-    code: `const state = await Summarizer.availability(options);
+    code: `// 1) Check support for the exact options you'll use
+const state = await Summarizer.availability(options);
 // 'unavailable' | 'downloadable' | 'downloading' | 'available'
 
+// 2) Create a session after a user gesture
 if (state === 'available') {
   const session = await Summarizer.create(options);
+
+  // 3) Call the task — stream when possible
   for await (const chunk of session.summarizeStreaming(text)) {
-    output.textContent += chunk;   // text, never innerHTML
+    output.textContent += chunk; // text, never innerHTML
   }
 } else {
-  showHonestFallback(state);
+  showHonestFallback(state); // cloud, server, or reduced UX
 }`,
+    links: [
+      { label: 'Summarizer API', url: 'https://developer.chrome.com/docs/ai/summarizer-api' },
+      { label: 'Built-in AI best practices', url: 'https://developer.chrome.com/docs/ai/built-in' },
+    ],
     notes: [
+      'The shape is the same idea across APIs: check availability for your options, create a session on user gesture, call the task, handle unsupported states.',
       'Do not skip the fallback branch. That is what makes this shippable on a public site.',
       'Pass the same options to availability() and create(), otherwise you may probe a different configuration.',
-      'The first download needs activation: trigger from a click, not on page load.',
-      'Byte-level downloadprogress is not reliable; the four availability states are your UI.',
     ],
   },
   {
@@ -259,38 +286,60 @@ if (state === 'available') {
     id: 'decision',
     kind: 'decision',
     kicker: '',
-    title: 'When to use which path',
-    seconds: 110,
-    subtitle: 'Always: availability() check first, then fall back honestly.',
+    title: 'Two decisions, not one',
+    seconds: 120,
+    subtitle: 'Where it runs, and which API shape fits the job.',
     branches: [
-      { q: 'Sensitive data / offline / no per-call cost', a: 'Built-in on-device', tone: 'green' },
-      { q: 'Narrow, repeatable job (detect, translate, summarize)', a: 'Built-in task API', tone: 'cyan' },
-      { q: 'Needs latest knowledge or mobile reach', a: 'Cloud / hybrid', tone: 'violet' },
+      { q: 'Decision 1 · Where should it run?', a: 'On-device when private/offline/low-latency; cloud/hybrid when you need reach, latest knowledge, or bigger models', tone: 'green' },
+      { q: 'Decision 2 · What API shape fits?', a: 'Task API for narrow jobs (detect/translate/summarize/write). Prompt API for custom tasks or JSON-schema extraction', tone: 'cyan' },
+      { q: 'Always', a: 'Feature-detect, design unsupported state, and keep a fallback path', tone: 'amber' },
+    ],
+    links: [
+      { label: 'Built-in AI APIs', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
+      { label: 'Prompt API', url: 'https://developer.chrome.com/docs/ai/prompt-api' },
     ],
     notes: [
-      'Task API means the purpose-built browser APIs: Translator, Language Detector, Summarizer, Writer/Rewriter/Proofreader. They have constrained inputs/outputs and are easier to reason about than a free-form prompt.',
-      'World knowledge or mobile reach means: the model needs up-to-date internet knowledge, or your users are mostly on Android/iOS where these APIs are not available. In that case use cloud or a hybrid: try local, fall back deliberately.',
-      'This is the enablement slide. Mention polyfills and Firebase AI Logic hybrid fallback.',
-      'Do not say "just use built-in AI". Say "use it where its constraints are your constraints".',
+      'Separate the two questions. Running on-device vs cloud is a deployment/privacy/reach decision. Task API vs Prompt API is an API-shape decision.',
+      'Task APIs are purpose-built: Translator, Language Detector, Summarizer, Writer/Rewriter/Proofreader. Prompt API is the flexible path; with responseConstraint it is great for structured extraction.',
+      'You can combine them: on-device Prompt API for private extraction, cloud fallback when unavailable. Firebase AI Logic / hybrid is the practical path when reach matters.',
     ],
   },
   {
-    id: 'poll',
-    kind: 'poll',
+    id: 'cloud',
+    kind: 'code',
     kicker: '',
-    title: 'Where would you try this first?',
-    seconds: 60,
-    subtitle: 'A few common starting points — not the only ones.',
-    cards: [
-      { n: 'A', title: 'Private content', sub: 'Summaries, search, notes', tone: 'cyan' },
-      { n: 'B', title: 'Extraction', sub: 'Forms, receipts, emails', tone: 'violet' },
-      { n: 'C', title: 'Multilingual UX', sub: 'Detect + translate', tone: 'green' },
-      { n: 'D', title: 'Writing assist', sub: 'Rewrite, proofread, draft', tone: 'amber' },
+    title: 'On-device is a constraint, not a religion',
+    seconds: 45,
+    code: `// Pick the runtime based on capability, not ideology
+if (await Summarizer.availability(opts) === 'available') {
+  return summarizeOnDevice(session, text);
+}
+// Fallback: cloud, server, or hybrid (e.g. Firebase AI Logic)
+return summarizeWithCloudApi(text);`,
+    links: [
+      { label: 'Firebase AI Logic hybrid', url: 'https://firebase.google.com/docs/ai-logic/hybrid-on-device-inference' },
     ],
     notes: [
-      'Hands up first. These are conversation starters, not the only valid use cases. If someone shouts “accessibility” or “offline field app”, that’s a great answer.',
-      'Read the room: if many people pick D, spend a little more time on the fact that Writer/Rewriter/Proofreader are still trials, so the right answer may be Prompt API or cloud today.',
-      'This is the mid-talk interaction beat; the fallback is that people shout a letter.',
+      'This follows the decision slide: first decide where it should run, then make fallback explicit. Keep it short.',
+      'Wins: privacy, no per-call cost, offline, low warm latency. Costs: download, disk, RAM, quality ceiling, limited reach.',
+    ],
+  },
+  {
+    id: 'audience-input',
+    kind: 'demo',
+    kicker: '',
+    title: 'Where would you use this?',
+    seconds: 90,
+    subtitle: 'Audience picks a use case. We map it live to the right API.',
+    demo: 'demos/05-use-case/index.html',
+    demoLabel: 'AUDIENCE INPUT → API SUGGESTION',
+    links: [
+      { label: 'Built-in AI APIs', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
+    ],
+    notes: [
+      'Ask the room: “What would you use this for in your app?” Take one or two answers. Type it in, pick the closest constraint, and run it.',
+      'The demo uses the Prompt API to suggest a built-in API path and fallback. Treat it as a live brainstorming aid, not an authority.',
+      'If Prompt API is unavailable, the demo falls back to deterministic local suggestions. Say that out loud — that is the product pattern.',
     ],
   },
   {
@@ -314,9 +363,9 @@ if (state === 'available') {
         tone: 'green',
       },
       {
-        title: 'Mastodon / Elk plans',
-        line: 'Client-side translate/detect to cut server cost',
-        tag: 'Real adoption pressure',
+        title: 'Mastodon / Elk',
+        line: 'Client-side translate/detect interest to reduce server cost',
+        tag: 'Adoption signal',
         tone: 'violet',
       },
       {
@@ -326,10 +375,16 @@ if (state === 'available') {
         tone: 'amber',
       },
     ],
+    links: [
+      { label: 'Google Meet translated captions', url: 'https://support.google.com/meet/answer/13993744' },
+      { label: 'Chrome live caption/translation', url: 'https://support.google.com/chrome/answer/10538231' },
+      { label: 'Mastodon translation PR #35369', url: 'https://github.com/mastodon/mastodon/pull/35369' },
+      { label: 'Mastodon language detect PR #35345', url: 'https://github.com/mastodon/mastodon/pull/35345' },
+    ],
     notes: [
       'I looked at the 2025 hackathon gallery for inspiration; the strongest pattern to borrow is graceful degradation (Pet Shelter App): AI fills the form, but the form still works without AI. I did not find a hackathon demo that cleanly fits an audience-in-the-room live interaction better than the existing condense/extract demos.',
-      'Google Meet live caption translation is a concrete real-world on-device AI use case (Google has discussed on-device speech/translation in Meet). Chrome’s own translation/features are layer-1 product examples — useful as context, but no developer API.',
-      'Mastodon PRs (#35369 translate, #35345 detect) and Elk’s translation discussion show real demand: client-side translation can remove paid server-side translation costs for admins. This is adoption pressure, not shipping universal browser support.',
+      'Google Meet live caption translation is a concrete real-world on-device AI use case. Chrome’s own translation/features are useful product context; layer 1 is not a developer API.',
+      'Mastodon PRs (#35369 translate, #35345 detect) and Elk’s discussion show real adoption pressure: client-side translation can remove paid server-side translation costs for admins. Present this as adoption signal, not universal shipped support.',
       'Be careful not to overclaim customer case studies. The previously mentioned Perplexity case study 404’d, so it stays out.',
     ],
   },
@@ -337,50 +392,43 @@ if (state === 'available') {
     id: 'interop',
     kind: 'cards',
     kicker: '',
-    title: 'The web is working it out',
+    title: 'Standards & interop are moving',
     seconds: 95,
     subtitle: 'Ship progressively: detect capability, add fallback, watch standards.',
     cards: [
       { title: 'Chrome / Edge', sub: 'Shipping or previewing APIs', tag: 'Build now', tone: 'green' },
-      { title: 'W3C WebML', sub: 'Community Group incubating specs', tag: 'Standard path', tone: 'cyan' },
-      { title: 'Firefox / WebKit', sub: 'Open concerns, no shipped API', tag: 'Watch', tone: 'amber' },
-      { title: 'Mastodon', sub: 'Wants 2 engines before shipping', tag: 'Real demand', tone: 'violet' },
+      { title: 'W3C WebML CG', sub: 'Incubating specs in the open', tag: 'Standard path', tone: 'cyan' },
+      { title: 'Mozilla / Firefox', sub: 'Wants web-shaped, privacy-safe design', tag: 'Feedback', tone: 'amber' },
+      { title: 'WebKit / Safari', sub: 'No position yet; privacy concerns raised', tag: 'Watch', tone: 'slate' },
+    ],
+    links: [
+      { label: 'W3C WebML WG/CG', url: 'https://webmachinelearning.github.io/' },
+      { label: 'Mozilla standards position', url: 'https://github.com/mozilla/standards-positions/issues/1015' },
+      { label: 'WebKit standards position', url: 'https://github.com/WebKit/standards-positions/issues/339' },
     ],
     notes: [
-      'Frame this as healthy standards work, not doom. Different engines have different constraints: Mozilla wants DOM-tree translation and raised spec-shape concerns; WebKit raised XSLeak concerns around language-pack downloads. Those are useful critiques.',
-      'Mastodon is here because it is a real product signal: their PRs wait for two browser engines, and client-side translation would remove server-side translation costs for admins. It explains why interop matters.',
+      'Frame this as healthy standards work, not doom. Different engines have different constraints: Mozilla raised spec-shape/DOM translation concerns; WebKit raised XSLeak/privacy concerns around language-pack behavior. Those are useful critiques.',
+      'Mastodon belongs in real-world adoption pressure, not as a web standards body — it is a product signal that wants client-side translation and cross-engine support.',
       'Practical takeaway: build for Chrome/Edge where available, feature-detect, use cloud/polyfill fallback, and avoid promising cross-browser support dates.',
       'If time is short, this is the first slide to trim.',
-    ],
-  },
-  {
-    id: 'cloud',
-    kind: 'code',
-    kicker: '',
-    title: 'On-device is a constraint, not a religion',
-    seconds: 35,
-    code: `if (await Summarizer.availability(opts) === 'available') {
-  return summarizeOnDevice(session, text);
-}
-return summarizeWithCloudApi(text);   // or a polyfill`,
-    notes: [
-      'Keep this to 35 seconds. It is the logical conclusion of the decision slide.',
-      'Wins: privacy, no per-call cost, offline, low warm latency. Costs: download, disk, RAM, quality ceiling, limited reach.',
     ],
   },
   {
     id: 'close',
     kind: 'close',
     kicker: '',
-    title: 'The browser is becoming a runtime for AI',
+    title: 'What could your app do if AI was just there?',
     seconds: 80,
-    subtitle: 'Next: WebMCP — apps expose tools to agents, with a human in the loop.',
-    takeaways: ['Four jobs', 'One shape', 'Design the unsupported state first'],
+    subtitle: 'Private by default. Offline when needed. No API key for the smallest useful job.',
+    takeaways: ['Pick the smallest useful API', 'Design for unsupported states', 'Ship progressively'],
+    links: [
+      { label: 'Chrome built-in AI docs', url: 'https://developer.chrome.com/docs/ai/built-in' },
+      { label: 'WebMCP', url: 'https://webmachinelearning.github.io/webmcp/' },
+    ],
     notes: [
-      'Point at the repo URL on the final slide once published.',
-      'End the content near 25:00 so the 5-minute mobile Q&A fits inside the 30-minute slot.',
-      'If behind, cut the interop slide or the injection demo before cutting Q&A.',
-      'The deck and demos are public. Take the code, not just the ideas.',
+      'End on a vision, not a recap slogan. The browser can make small AI tasks cheap, private, and close to the user — if we design the fallback honestly.',
+      'Next: WebMCP — apps expose tools to agents, with a human in the loop. Mention it as the emerging direction, not a promise.',
+      'Point at the repo URL on the final slide once published. End the content near 25:00 so the 5-minute mobile Q&A fits inside the 30-minute slot.',
     ],
   },
   {

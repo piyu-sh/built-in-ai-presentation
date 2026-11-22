@@ -6,10 +6,10 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 
 const textArea = h('textarea');
 textArea.value = INVOICE_EMAIL;
-textArea.rows = 14;
+textArea.rows = 6;
 
 const schemaButtons = h('div', { class: 'controls' });
-const runButton = button('Extract with a JSON schema', () => void run(), 'primary');
+const runButton = button('Extract', () => void run(), 'primary');
 const stateLine = h('div', { class: 'controls' });
 const timings = h('div', { class: 'chips' });
 const rawOutput = pre('Raw model output');
@@ -62,27 +62,41 @@ for (const key of Object.keys(SCHEMAS) as SchemaKey[]) {
 app.append(
   h('div', { class: 'wrap' },
     h('header', { class: 'top' },
-      h('h1', { text: 'Extract: from prose to typed data' }),
-      h('span', { class: 'sub', text: 'Prompt API · responseConstraint · JSON Schema' }),
+      h('h1', { text: 'Prose in → typed object out' }),
+      h('span', { class: 'sub', text: 'Prompt API + JSON Schema' }),
       h('a', { href: '../../index.html', text: '← deck' }),
     ),
-    h('p', { class: 'muted', text:
-      'A JSON Schema in the responseConstraint gives you shaped, machine-usable output from messy text. Same trick works on images when the browser exposes image input.' }),
-    h('div', { class: 'grid two' },
-      section('Messy input — paste anything', textArea),
-      h('div', { class: 'grid' }, resultPanel, rawOutput.root),
+    h('div', { class: 'grid two', style: 'gap:10px; align-items:start;' },
+      h('div', {},
+        section('Input',
+          textArea,
+          h('label', { text: 'Schema' }),
+          schemaButtons,
+          h('div', { class: 'controls' }, runButton),
+          stateLine,
+          timings,
+        ),
+        codePanel.root,
+      ),
+      h('div', { class: 'grid', style: 'gap:10px;' }, resultPanel, rawOutput.root),
     ),
-    h('h2', { text: 'Audience decides the shape' }),
-    schemaButtons,
-    h('div', { class: 'controls' }, runButton),
-    stateLine,
-    timings,
-    codePanel.root,
-    h('p', { class: 'muted small', text:
-      'Edge note: Edge watermarks Prompt API output, but its documentation says the watermark is not applied when responseConstraint is used. Prompt API is stable on the web in Chrome 148; in Edge 158+ it is a flag-gated developer preview using Aion Instruct 2.3B.' }),
   ),
 );
 syncSchema();
+
+function tryParseJson(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
+  const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+  const candidates = [cleaned];
+  const first = cleaned.indexOf('{');
+  const last = cleaned.lastIndexOf('}');
+  if (first >= 0 && last > first) candidates.push(cleaned.slice(first, last + 1));
+  let error = 'Invalid JSON';
+  for (const candidate of candidates) {
+    try { return { ok: true, value: JSON.parse(candidate) }; }
+    catch (e) { error = errText(e); }
+  }
+  return { ok: false, error };
+}
 
 function renderObject(value: unknown): void {
   fields.replaceChildren();
@@ -91,7 +105,7 @@ function renderObject(value: unknown): void {
     return;
   }
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    const display = Array.isArray(entry) ? entry.join(', ') : String(entry);
+    const display = Array.isArray(entry) ? entry.join(', ') : typeof entry === 'string' ? entry : JSON.stringify(entry);
     fields.append(h('dt', { text: key }), h('dd', { text: display || '—' }));
   }
 }
@@ -135,8 +149,9 @@ async function run(): Promise<void> {
     const prompted = await timed(async () => String(await call(created.value, 'prompt', textArea.value)));
     rawOutput.set(prompted.value);
     tPrompt.set(formatMs(prompted.ms));
-    const parsed = JSON.parse(prompted.value) as unknown;
-    renderObject(parsed);
+    const parsed = tryParseJson(prompted.value);
+    if (!parsed.ok) throw new Error(parsed.error);
+    renderObject(parsed.value);
     tParse.set('ok');
     const destroy = created.value['destroy'];
     if (typeof destroy === 'function') destroy.call(created.value);

@@ -15,12 +15,12 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 
 const textArea = h('textarea');
 textArea.value = REVIEWS;
-textArea.rows = 14;
+textArea.rows = 7;
 
 const formatButtons = h('div', { class: 'controls' });
 const lengthButtons = h('div', { class: 'controls' });
 const audienceMode = h('div', { class: 'controls' });
-const runButton = button('Summarize with the browser', () => void run(), 'primary');
+const runButton = button('Summarize', () => void run(), 'primary');
 const stateLine = h('div', { class: 'controls' });
 const timings = h('div', { class: 'chips' });
 const result = pre('Streaming summary');
@@ -109,30 +109,33 @@ for (const item of [
   audienceMode.append(b);
 }
 
+textArea.rows = 7;
 app.append(
   h('div', { class: 'wrap' },
     h('header', { class: 'top' },
-      h('h1', { text: 'Condense: you choose the shape' }),
-      h('span', { class: 'sub', text: 'Summarizer API · streaming · synthetic review thread' }),
+      h('h1', { text: 'Summarize — you pick the shape' }),
+      h('span', { class: 'sub', text: 'Summarizer API · streaming' }),
       h('a', { href: '../../index.html', text: '← deck' }),
     ),
-    h('div', { class: 'grid two' },
-      section('Input — replace with anything', textArea),
-      h('div', { class: 'grid' }, result.root, codePanel.root),
+    h('div', { class: 'grid two', style: 'gap:10px; align-items:start;' },
+      h('div', {},
+        section('Input',
+          textArea,
+          h('div', { class: 'grid two', style: 'gap:8px; margin-top:8px;' },
+            h('div', {}, h('label', { text: 'Format' }), formatButtons),
+            h('div', {}, h('label', { text: 'Length' }), lengthButtons),
+          ),
+          h('div', { class: 'controls' }, runButton),
+          stateLine,
+          timings,
+        ),
+        codePanel.root,
+      ),
+      h('div', { class: 'grid', style: 'gap:10px;' },
+        result.root,
+        section('Audience', audienceMode, qrPanel, h('p', { class: 'muted small', text: 'Paste any text. Summarizer is task-specific and streams.' })),
+      ),
     ),
-    h('h2', { text: 'Audience decides' }),
-    audienceMode,
-    qrPanel,
-    h('h2', { text: 'Output shape' }),
-    h('div', { class: 'grid two' },
-      h('div', {}, h('label', { text: 'Format' }), formatButtons),
-      h('div', {}, h('label', { text: 'Length' }), lengthButtons),
-    ),
-    h('div', { class: 'controls' }, runButton),
-    stateLine,
-    timings,
-    h('p', { class: 'muted small', text:
-      'Length labels map to API options; they are not literal word counts. Summarizer is stable in Chrome 138+ and is a narrow, task-specific model — that is why it is fast and predictable.' }),
   ),
 );
 syncCode();

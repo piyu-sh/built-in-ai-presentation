@@ -30,6 +30,7 @@ const notesPanel = h('section', { class: 'p-panel' },
 
 const nextText = h('div', { class: 'p-next-text' });
 const readinessEl = h('div', { class: 'p-readiness' });
+const linksList = h('div', { class: 'p-links' });
 
 function commandButton(label: string, onClick: () => void, extraClass = ''): HTMLButtonElement {
   const node = h('button', { class: `p-btn ${extraClass}`.trim(), type: 'button', text: label });
@@ -45,6 +46,7 @@ const focusBtn = commandButton('Focus deck', () => window.opener?.focus());
 
 const side = h('aside', { class: 'p-side' },
   h('section', { class: 'p-panel' }, h('h2', { text: 'Next' }), nextText),
+  h('section', { class: 'p-panel' }, h('h2', { text: 'References' }), linksList),
   h('section', { class: 'p-panel' }, h('h2', { text: 'Model' }), readinessEl,
     h('div', { class: 'p-buttons' }, warmBtn, cannedBtn),
     h('p', { class: 'p-hint', text: 'Canned output uses recorded demo results when the live model is unavailable.' }),
@@ -91,6 +93,11 @@ function applyState(nextState: DeckState): void {
   currentTitle.textContent = slide.title;
   notesList.replaceChildren(...slide.notes.map((line) => h('li', { text: line })));
   nextText.textContent = next ? `${next.kicker ? `${next.kicker} - ` : ''}${next.title}` : 'End of content · 5 min Q&A';
+  linksList.replaceChildren(
+    ...(slide.links?.length
+      ? slide.links.map((link) => h('a', { class: 'p-link', href: link.url, target: '_blank', rel: 'noopener noreferrer', text: `${link.label} ↗` }))
+      : [h('div', { class: 'p-hint', text: 'No references for this slide.' })]),
+  );
 
   readinessEl.textContent = state.readiness;
   readinessEl.className = `p-readiness tone-${state.readinessTone}`;

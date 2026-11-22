@@ -149,6 +149,7 @@ function renderSlide(slide: Slide): HTMLElement {
       title: slide.title,
       allow: 'language-model; translator; language-detector; summarizer; writer; rewriter; proofreader',
     });
+    iframe.addEventListener('load', () => { void prewarmFor(slide.id); }, { once: true });
     const label = h('div', { class: 'demo-label' }, h('i'), h('span', { text: slide.demoLabel ?? 'LIVE DEMO' }));
     node.append(h('div', { class: 'demo-wrap' }, label, iframe));
     return node;
@@ -191,7 +192,9 @@ function renderSlide(slide: Slide): HTMLElement {
   }
 
   if (slide.kind === 'title') {
-    if (slide.takeaways?.length) {
+    if (slide.id === 'title' && slide.takeaways?.[0]) {
+      node.append(h('div', { class: 'title-author', text: slide.takeaways[0] }));
+    } else if (slide.takeaways?.length) {
       const wrap = h('div', { class: 'takeaways' });
       for (const [position, text] of slide.takeaways.entries()) {
         wrap.append(h('div', { class: 'takeaway', style: `--i:${position}`, text }));
@@ -291,6 +294,21 @@ async function warmNow(): Promise<void> {
   renderDrawer();
   broadcast();
   applyPrewarm(await prewarm());
+}
+
+async function prewarmFor(slideId: string): Promise<void> {
+  if (keynoteMode()) return;
+  try {
+    if (slideId === 'cold-open' || slideId === 'injection') {
+      await prewarm(); // LanguageModel/translation-adjacent warmup
+    } else if (slideId === 'condense') {
+      const { availability: a, createSession: c } = await import('../demos/shared/ai');
+      const opts = { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: 'en' };
+      if (await a('Summarizer', opts) === 'available') { const s = await c('Summarizer', opts, 60_000); const d = (s as any).destroy; if (typeof d === 'function') d.call(s); }
+    } else if (slideId === 'extract' || slideId === 'audience-input') {
+      await prewarm();
+    }
+  } catch { /* best effort */ }
 }
 
 function go(next: number): void {

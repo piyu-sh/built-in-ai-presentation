@@ -16,6 +16,7 @@ export default defineConfig({
         summarizer: resolve(root, 'demos/02-summarizer/index.html'),
         structured: resolve(root, 'demos/03-structured/index.html'),
         injection: resolve(root, 'demos/04-injection/index.html'),
+        useCase: resolve(root, 'demos/05-use-case/index.html'),
       },
     },
   },

@@ -6,6 +6,7 @@ const app = document.querySelector<HTMLDivElement>('#app')!;
 
 const textArea = h('textarea', {});
 textArea.value = SAMPLES[1]!.text;
+textArea.rows = 3;
 const samples = h('div', { class: 'controls' });
 const target = h('select');
 for (const lang of ['en', 'fr', 'de', 'es', 'ja']) {
@@ -13,7 +14,7 @@ for (const lang of ['en', 'fr', 'de', 'es', 'ja']) {
 }
 target.value = 'en';
 
-const runButton = button('Detect → translate → summarize', () => void run(), 'primary');
+const runButton = button('Run', () => void run(), 'primary');
 const state = h('div', { class: 'controls' });
 const timings = h('div', { class: 'chips' });
 const detected = pre('1 · Language Detector');
@@ -42,32 +43,22 @@ for (const sample of SAMPLES) {
 app.append(
   h('div', { class: 'wrap' },
     h('header', { class: 'top' },
-      h('h1', { text: 'Understand a sentence' }),
-      h('span', { class: 'sub', text: 'detect · translate · summarize — no network call, no API key' }),
+      h('h1', { text: 'Detect → translate → summarize' }),
+      h('span', { class: 'sub', text: 'One shape, three APIs' }),
       h('a', { href: '../../index.html', text: '← deck' }),
     ),
-    h('div', { class: 'grid two' },
-      section('Your text (edit or paste anything)',
-        textArea,
-        h('label', { text: 'Try a sample' }),
-        samples,
-        h('label', { htmlFor: 'target-lang', text: 'Translate to' }),
-        target,
-        h('div', { class: 'controls' }, runButton),
-        state,
-      ),
-      h('div', { class: 'grid' }, detected.root, translated.root, summarized.root),
-    ),
-    timings,
-    h('div', { class: 'grid two' }, codePanel.root,
-      section('What to notice',
-        h('ul', { class: 'muted' },
-          h('li', { text: 'Every API follows the same three-step shape.' }),
-          h('li', { text: 'The browser decides whether the model is available; your app checks and adapts.' }),
-          h('li', { text: 'These are small, narrow models — fast enough to put in a normal product flow.' }),
-          h('li', { text: 'No text leaves the device. No account, no key, no bill.' }),
+    h('div', { class: 'grid two', style: 'gap:10px; align-items:start;' },
+      h('div', {},
+        section('Input',
+          samples,
+          textArea,
+          h('div', { class: 'controls' }, h('label', { text: 'Translate to', style: 'margin:0 6px 0 0;' }), target, runButton),
+          state,
+          timings,
         ),
+        codePanel.root,
       ),
+      h('div', { class: 'grid', style: 'gap:10px;' }, detected.root, translated.root, summarized.root),
     ),
   ),
 );
@@ -132,11 +123,15 @@ async function run(): Promise<void> {
       const options = { sourceLanguage: source, targetLanguage: dest };
       const translatorState = await availability('Translator', options);
       setBadge(translatorBadge, `translator: ${translatorState}`, translatorState === 'available' ? 'ok' : 'warn');
-      if (translatorState !== 'available') throw new Error(`Translator is ${translatorState} for ${source}→${dest}`);
-      const translator = await createSession('Translator', options);
-      const result = await timed(async () => String(await call(translator, 'translate', text)));
-      translated.set(result.value);
-      tTranslate.set(formatMs(result.ms));
+      if (translatorState !== 'available') {
+        translated.set(`${source}→${dest} is ${translatorState} on this browser.\n\nRecorded example (${source}→en):\n${CANNED.hello.translate}`);
+        tTranslate.set(translatorState);
+      } else {
+        const translator = await createSession('Translator', options);
+        const result = await timed(async () => String(await call(translator, 'translate', text)));
+        translated.set(result.value);
+        tTranslate.set(formatMs(result.ms));
+      }
     }
 
     const summarizerState = await availability('Summarizer', { type: 'tldr', length: 'short' });

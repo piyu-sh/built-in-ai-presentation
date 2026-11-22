@@ -62,6 +62,9 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 .p-notes li { margin-bottom: 14px; font-size: 16px; line-height: 1.6; color: #dbe6ff; }
 .p-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .p-next-text { font-size: 16px; line-height: 1.45; color: #dbe6ff; }
+.p-links { display: flex; flex-direction: column; gap: 8px; }
+.p-link { color: #cfe3ff; font-size: 13px; line-height: 1.4; text-decoration: none; word-break: break-word; }
+.p-link:hover { color: var(--accent); text-decoration: underline; }
 .p-readiness { font: 12px/1.5 var(--mono); }
 .p-readiness.tone-ok { color: var(--ok); }
 .p-readiness.tone-bad { color: var(--bad); }
