@@ -90,7 +90,7 @@ function applyState(nextState: DeckState): void {
 
   currentTitle.textContent = slide.title;
   notesList.replaceChildren(...slide.notes.map((line) => h('li', { text: line })));
-  nextText.textContent = next ? `${next.kicker} — ${next.title}` : 'End of content · 5 min Q&A';
+  nextText.textContent = next ? `${next.kicker ? `${next.kicker} - ` : ''}${next.title}` : 'End of content · 5 min Q&A';
 
   readinessEl.textContent = state.readiness;
   readinessEl.className = `p-readiness tone-${state.readinessTone}`;

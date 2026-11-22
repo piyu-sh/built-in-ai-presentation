@@ -228,7 +228,7 @@ function renderDrawer(): void {
     h('h3', { text: 'Notes' }),
     notes,
     h('h3', { text: 'Next' }),
-    h('div', { class: 'next', text: next ? `${next.kicker} — ${next.title}` : 'End of content · 5 min Q&A' }),
+    h('div', { class: 'next', text: next ? `${next.kicker ? `${next.kicker} - ` : ''}${next.title}` : 'End of content · 5 min Q&A' }),
     h('div', { class: 'readiness', text: readiness }),
     h('div', { class: 'drawer-controls' },
       ctrl('← Prev', () => go(index - 1)),
