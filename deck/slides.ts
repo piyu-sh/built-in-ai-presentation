@@ -89,8 +89,10 @@ export const slides: Slide[] = [
       'Pick a French sample. Ask: "What language is this? What would it take to ship this in your app today?"',
       'Run the three calls. Point at the code panel: same shape every time.',
       'Land the line: the browser is shipping a model as a platform primitive, like Canvas or Web Crypto.',
-      'If Canned output is ON, say explicitly: "This is recorded output from this exact browser."',
+      'If Canned output is ON, say explicitly: "This is recorded output from this exact browser." Not a live model run.',
       'Chrome reports every language pair as downloadable until this page creates a translator. After Download models, Run reuses the cached session instead of re-checking availability.',
+      'The iframe allow= list requests built-in AI permissions from the host page; a normal iframe cannot use these APIs silently.',
+      'First-time model provisioning is a separate, one-off download. Per-call inference sends no prompt text to a server; supported languages today are en, es, ja, de, fr.',
     ],
   },
   {
@@ -193,26 +195,26 @@ export const slides: Slide[] = [
     kicker: '',
     title: 'One shape across APIs',
     seconds: 70,
-    code: `// 1) Check support for the exact options you'll use
-const state = await Summarizer.availability(options);
+    code: `// Same 4-step shape: availability → create → task call → fallback
+// Swap API + task method: Summarizer · Translator · Prompt API · Writer
+const API = Summarizer; // or Translator / LanguageModel / Writer
+const state = await API.availability(options);
 // 'unavailable' | 'downloadable' | 'downloading' | 'available'
 
-// 2) Create a session after a user gesture
 if (state === 'available') {
-  const session = await Summarizer.create(options);
+  const session = await API.create(options); // user gesture
 
-  // 3) Call the task — stream when possible
-  for await (const chunk of session.summarizeStreaming(text)) {
+  for await (const chunk of session.summarizeStreaming(text)) { // or translateStreaming / promptStreaming
     output.textContent += chunk; // text, never innerHTML
   }
 } else {
   showHonestFallback(state); // cloud, server, or reduced UX
 }`,
     codeSteps: [
-      { lines: [1, 2, 3], note: 'Probe the exact config you will use. Same options for availability() and create().' },
-      { lines: [5, 6, 7, 8], note: 'Create after a user gesture. The browser owns model download/provisioning.' },
-      { lines: [10, 11, 12, 13], note: 'Call the task. Stream when possible. Render text, never HTML.' },
-      { lines: [14, 15, 16], note: 'No support? Be honest. Fallback, reduced UX, or cloud/hybrid.' },
+      { lines: [1, 2, 3, 4, 5], note: 'Same lifecycle everywhere. Swap the constructor and task method; keep the shape.' },
+      { lines: [7, 8], note: 'Create after a user gesture. The browser owns model download/provisioning.' },
+      { lines: [10, 11, 12], note: 'Call the task. Stream when possible. Render text, never HTML.' },
+      { lines: [13, 14, 15], note: 'No support? Be honest. Fallback, reduced UX, or cloud/hybrid.' },
     ],
     links: [
       { label: 'Summarizer API', url: 'https://developer.chrome.com/docs/ai/summarizer-api' },
@@ -236,7 +238,9 @@ if (state === 'available') {
       'Ask for a show of hands: one sentence, three bullets, or paragraph. Click the winning option.',
       'Point at the streaming output before it finishes; narrate what is happening.',
       'Then paste something absurd (a commit message, a recipe) to show it is a general text task.',
-      'Call out the timings: create(), first token, total. Warm first token was about 0.4s on this laptop.',
+      'Call out the timings: create(), first token, total. Warm first token was ~408ms vs ~19,169ms cold on the rehearsal laptop.',
+      'Streaming hides latency: the UI shows tokens as they arrive instead of waiting for the full answer.',
+      'This is the same shape as redBus/Miravia review summaries: narrow task, local output, optimistic UX with fallback.',
       'If Canned output is ON, say the output is recorded from this browser.',
     ],
   },
@@ -252,8 +256,9 @@ if (state === 'available') {
       'The email is deliberately messy: an old wrong total appears, plus an unrelated question.',
       'Ask the room which fields to extract. Click the corresponding schema button.',
       'Show the schema in the code panel, then run it. Point out JSON.parse succeeding.',
-      'Mention image input is the same idea with expectedInputs image — capability check first.',
-      'Edge watermarks Prompt API output except when responseConstraint is used. That is a real integration detail, not a footnote.',
+      'responseConstraint keeps the model inside the JSON schema; it also suppresses Edge’s invisible Prompt API watermark. This is an integration detail, not a footnote.',
+      'initialPrompts[0] is the system prompt; later messages are user content. Image input uses expectedInputs with an image type — capability-check first.',
+      'The raw output panel is there to debug parsing. In production, validate against the schema and never render model text as HTML.',
     ],
   },
   {
@@ -262,19 +267,21 @@ if (state === 'available') {
     kicker: '',
     title: 'Fast when warm. Not magic when cold.',
     seconds: 90,
-    subtitle: 'Measured on this laptop — not a benchmark',
+    subtitle: 'Rehearsal laptop · Performance Class: Medium · not a benchmark',
     stats: [
-      { value: '3.6s', label: 'Cold create()', tone: 'amber' },
-      { value: '19s', label: 'Cold first token', tone: 'red' },
-      { value: '0.4s', label: 'Warm first token', tone: 'green' },
-      { value: '2.0s', label: 'Warm total', tone: 'cyan' },
-      { value: '7.5m', label: 'First provision', tone: 'violet' },
+      { value: '3.6s', label: 'Cold create()', sub: 'session setup', tone: 'amber' },
+      { value: '19s', label: 'Cold first token', sub: '141-char prompt', tone: 'red' },
+      { value: '0.4s', label: 'Warm first token', sub: 'same session', tone: 'green' },
+      { value: '2.0s', label: 'Warm total', sub: '161 chars out', tone: 'cyan' },
+      { value: '7.5m', label: 'First provision', sub: 'after freeing ~22 GB', tone: 'violet' },
     ],
     notes: [
-      'These numbers are from this laptop, not a benchmarketing deck. Say that.',
-      'The honest position: on-device wins on privacy, latency-after-warm, and cost; loses on ceiling quality and reach.',
-      'Practical rules: pre-warm once per session, stream, cap output length, always have a fallback.',
-      'Quality ceiling of a ~2B-class on-device model; no internet knowledge; memory and disk are shared with the OS.',
+      'Say the frame out loud: one rehearsal laptop, Performance Class Medium, ~22 GB free disk after cleanup. These are observations, not a cross-device benchmark.',
+      'Cold create() 3,637ms, first token 19,169ms, total 20,800ms for 141 chars. Warm: create ~3ms, first token 408ms, total 2,020ms for 161 chars.',
+      'First provision took 452,858ms (~7.5 min) after freeing ~22 GB. Download speed is not the interesting number; browser provisioning and disk space dominate.',
+      'Byte-level downloadprogress did not fire in our runs, so the four availability() states are the only honest UI signal.',
+      'On-device wins on privacy, latency-after-warm and per-call cost; loses on quality ceiling, fresh knowledge and reach. ~2B-class model, no internet, disk/RAM shared with the OS.',
+      'Practical rules: pre-warm once per session, stream, cap output length, always have a fallback. Do not promise these numbers to users.',
     ],
   },
   {
@@ -312,9 +319,11 @@ if (state === 'available') {
       { label: 'Prompt API', url: 'https://developer.chrome.com/docs/ai/prompt-api' },
     ],
     notes: [
-      'Walk top-to-bottom: task fit → constraints → availability → API shape. Use the red branch to show fallback is normal, not failure.',
-      'Task APIs are purpose-built: Translator, Language Detector, Summarizer, Writer/Rewriter/Proofreader. Prompt API is flexible; responseConstraint is great for structured extraction.',
-      'Hybrid is practical: on-device when available, cloud/fallback when not.',
+      'Walk top-to-bottom: task fit → constraints → availability → API shape. The Mermaid diagram is lazy-loaded; if it fails, a native HTML flow appears.',
+      'Red branch is normal, not failure: Miravia and Bright Sites use cloud while the model downloads. Hybrid is a shipping pattern.',
+      'If they need latest knowledge, huge context or strongest reasoning, go cloud/server. Do not force a narrow on-device model into those jobs.',
+      'Availability must use the same options as create(): unavailable / downloadable / downloading / available. Do not promise other browsers are coming soon.',
+      'Task APIs are purpose-built; Prompt API is flexible, and responseConstraint is great for structured extraction. Always ship a fallback.',
     ],
   },
   {
@@ -339,6 +348,8 @@ return summarizeWithCloudApi(text);`,
     notes: [
       'This follows the decision slide: first decide where it should run, then make fallback explicit. Keep it short.',
       'Wins: privacy, no per-call cost, offline, low warm latency. Costs: download, disk, RAM, quality ceiling, limited reach.',
+      'Firebase AI Logic hybrid is the concrete reference: supported devices run locally, others call the cloud SDK. Link is in presenter references.',
+      'Frame this as capability, not ideology. If on-device is unavailable, the user should still get a useful answer.',
     ],
   },
   {
@@ -402,9 +413,14 @@ return summarizeWithCloudApi(text);`,
       { label: 'Bright Sites & Terra summaries', url: 'https://developer.chrome.com/blog/summarizer-terra-brightsites' },
     ],
     notes: [
-      'These are published Chrome case studies linked from the built-in AI docs - use them as primary-source evidence. Keep claims tied to what each case study says.',
-      'Frame as narrow-task wins: lower cost/latency, privacy, progressive enhancement/hybrid fallback. Do not overclaim universal availability.',
-      'If asked for sources: point to the Case studies section on developer.chrome.com/docs/ai/built-in.',
+      'All claims here come from case studies linked in Chrome’s built-in AI docs. Present them as published evidence, not universal availability.',
+      'Yahoo Taiwan Ecommerce: one product photo → category, title, details, hashtags and price. Listing time 20 min → 2 min; ~3% CTR vs 1.3–1.8%; >1M interactions / 100k users. Uses a Web Component + SharedWorker because Prompt API is top-level-document only.',
+      'redBus: 30M customers across 10k cities; ≤30-word positive/negative route-review summaries. Server cost was prohibitive at that volume.',
+      'Miravia: summaries regenerate when rating filters change; +12.4% product-page and +3.3% sitewide conversion. It serves a server summary while the local model downloads.',
+      'Policybazaar: 97M users; Finova detects Indic input then translates to English, ~2s for 1000 chars, with a typing indicator. JioHotstar: dynamic subtitle translation when original tracks are missing; checks language packs, caches translators per pair, falls back to source text.',
+      'CyberAgent/Ameba Blog: extension for titles, headings, next paragraphs and copy edits; tested with select bloggers. Invalid JSON/Markdown and context limits motivated responseConstraint.',
+      'Bright Sites/Flow: 150+ titles, prefs in IndexedDB, explicit consent before multi-GB download, Underground offline value. Terra: 50M+ visitors, pt→en summarize→translate back, journalists edit the result.',
+      'Caution: published examples using innerHTML are NOT our rule — use textContent. topK/temperature are superseded by samplingMode. No Perplexity case study; hackathon examples are range-finders only.',
     ],
   },
   {
@@ -426,10 +442,11 @@ return summarizeWithCloudApi(text);`,
       { label: 'WebKit standards position', url: 'https://github.com/WebKit/standards-positions/issues/339' },
     ],
     notes: [
-      'Frame this as healthy standards work, not doom. Different engines have different constraints: Mozilla raised spec-shape/DOM translation concerns; WebKit raised XSLeak/privacy concerns around language-pack behavior. Those are useful critiques.',
-      'Mastodon belongs in real-world adoption pressure, not as a web standards body — it is a product signal that wants client-side translation and cross-engine support.',
-      'Practical takeaway: build for Chrome/Edge where available, feature-detect, use cloud/polyfill fallback, and avoid promising cross-browser support dates.',
-      'If time is short, this is the first slide to trim.',
+      'Frame as healthy standards work, not doom. Translation and Summarizer are in W3C WebML work; Prompt API is experimental in Chrome/Edge.',
+      'Mozilla is negative on the current Translation API spec: it assumes a backend and exposes availability/download/quotas. They want first-class DOM translation. Their Dec 2025 position leaves room if the spec splits.',
+      'WebKit has had no position since Apr 2024. They raised XSLeak concerns and called the API essentially a fetch() wrapper. These are useful critiques, not hostility.',
+      'Mastodon PRs #35369/#35345 are adoption pressure: they wait for two engines to drop paid server translation. Not a standards body, not shipped universal support.',
+      'Practical takeaway: build for Chrome/Edge where available, feature-detect, use cloud/fallback, and avoid promising cross-browser dates. Trim this slide first if time is short.',
     ],
   },
   {

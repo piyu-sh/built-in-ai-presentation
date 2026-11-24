@@ -70,7 +70,9 @@ body { margin: 0; background: var(--bg); color: var(--text); }
   letter-spacing: .18em;
   text-transform: uppercase;
 }
-.p-current { margin: 0 0 16px; font-size: clamp(24px, 3vw, 40px); line-height: 1.1; letter-spacing: -.035em; }
+.p-current { margin: 0 0 10px; font-size: clamp(24px, 3vw, 40px); line-height: 1.1; letter-spacing: -.035em; }
+.p-step { margin: 0 0 14px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); font: 11px/1.4 var(--mono, monospace); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.p-step:empty { display: none; }
 .p-notes { margin: 0; padding-left: 22px; }
 .p-notes li { margin-bottom: 14px; font-size: 16px; line-height: 1.6; color: #dbe6ff; }
 .p-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }

@@ -34,8 +34,12 @@ function elapsedSeconds(): number {
 }
 
 function currentState(): DeckState {
+  const steps = slides[index]?.codeSteps ?? [];
   return {
     index,
+    stepIndex: steps.length ? stepIndex : 0,
+    stepCount: steps.length,
+    stepNote: steps[stepIndex]?.note ?? '',
     elapsed: elapsedSeconds(),
     running: talkStart !== null,
     canned: keynoteMode(),
@@ -561,6 +565,7 @@ function advance(dir: 1 | -1): void {
       stepIndex = nextStep;
       const node = stage.querySelector<HTMLElement>('.slide');
       if (node) applyCodeStep(node, slide, stepIndex);
+      broadcast();
       return;
     }
   }
@@ -585,8 +590,9 @@ function initTheme(): void {
 }
 
 function handleCommand(command: PresenterCommand): void {
-  if (command.action === 'next') go(index + 1);
-  else if (command.action === 'prev') go(index - 1);
+  if (command.action === 'next') advance(1);
+  else if (command.action === 'prev') advance(-1);
+  else if (command.action === 'step') advance(command.dir);
   else if (command.action === 'goto') go(command.index);
   else if (command.action === 'canned') {
     if (keynoteMode() !== command.enabled) toggleCanned();

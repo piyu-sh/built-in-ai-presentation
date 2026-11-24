@@ -21,10 +21,12 @@ const header = h('header', { class: 'p-head' },
 const progress = h('div', { class: 'p-progress' }, progressFill);
 
 const currentTitle = h('h1', { class: 'p-current' });
+const stepEl = h('div', { class: 'p-step' });
 const notesList = h('ul', { class: 'p-notes' });
 const notesPanel = h('section', { class: 'p-panel' },
   h('h2', { text: 'Speaker notes' }),
   currentTitle,
+  stepEl,
   notesList,
 );
 
@@ -38,8 +40,8 @@ function commandButton(label: string, onClick: () => void, extraClass = ''): HTM
   return node;
 }
 
-const prevBtn = commandButton('← Prev', () => send({ action: 'prev' }));
-const nextBtn = commandButton('Next →', () => send({ action: 'next' }));
+const prevBtn = commandButton('← Prev', () => send({ action: 'step', dir: -1 }));
+const nextBtn = commandButton('Next →', () => send({ action: 'step', dir: 1 }));
 const cannedBtn = commandButton('Canned output: OFF', () => send({ action: 'canned', enabled: !state.canned }));
 const warmBtn = commandButton('Warm model', () => send({ action: 'warm' }));
 const themeBtn = commandButton('Theme: dark', () => {
@@ -59,7 +61,7 @@ const side = h('aside', { class: 'p-side' },
   h('section', { class: 'p-panel' }, h('h2', { text: 'Control' }),
     h('div', { class: 'p-buttons' }, prevBtn, nextBtn),
     h('div', { class: 'p-buttons' }, themeBtn, focusBtn),
-    h('p', { class: 'p-hint', text: 'Arrow keys navigate. K toggles canned output. Close this window when using a duplicated display.' }),
+    h('p', { class: 'p-hint', text: 'Arrow keys step through code slides, then advance slides. K toggles canned output. Close this window on a duplicated display.' }),
   ),
 );
 
@@ -80,12 +82,15 @@ function initTheme(): void {
 
 const defaultState: DeckState = {
   index: 0,
+  stepIndex: 0,
+  stepCount: 0,
+  stepNote: '',
   elapsed: 0,
   running: false,
   canned: false,
   readiness: 'Model: checking…',
   readinessTone: 'muted',
-  updatedAt: Date.now(),
+  updatedAt: 0,
 };
 
 let state: DeckState = defaultState;
@@ -99,6 +104,7 @@ function send(command: PresenterCommand): void {
 }
 
 function applyState(nextState: DeckState): void {
+  if (nextState.updatedAt < state.updatedAt) return;
   state = nextState;
   const slide = slides[state.index] ?? slides[0]!;
   const next = slides[state.index + 1];
@@ -109,6 +115,7 @@ function applyState(nextState: DeckState): void {
   progressFill.style.width = `${Math.min(100, (state.elapsed / TOTAL_PLANNED) * 100)}%`;
 
   currentTitle.textContent = slide.title;
+  stepEl.textContent = state.stepCount ? `Step ${state.stepIndex + 1}/${state.stepCount} · ${state.stepNote}` : '';
   notesList.replaceChildren(...slide.notes.map((line) => h('li', { text: line })));
   nextText.textContent = next ? `${next.kicker ? `${next.kicker} - ` : ''}${next.title}` : 'End of content · 5 min Q&A';
   linksList.replaceChildren(
@@ -126,12 +133,16 @@ function applyState(nextState: DeckState): void {
 }
 
 window.addEventListener('keydown', (event) => {
-  if (event.key === 'ArrowRight' || event.key === ' ' || event.key === 'PageDown') {
+  if (event.target instanceof HTMLButtonElement) return;
+  if (event.key === 'ArrowRight' || event.key === 'PageDown') {
     event.preventDefault();
-    send({ action: 'next' });
+    send({ action: 'step', dir: 1 });
   } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
     event.preventDefault();
-    send({ action: 'prev' });
+    send({ action: 'step', dir: -1 });
+  } else if (event.key === ' ') {
+    event.preventDefault();
+    send({ action: 'step', dir: 1 });
   } else if (event.key.toLowerCase() === 'k') {
     send({ action: 'canned', enabled: !state.canned });
   } else if (event.key === 'Escape') {
