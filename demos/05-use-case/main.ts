@@ -1,7 +1,11 @@
-import { availability, call, createSession, errText, formatMs, keynoteMode, timed, withTimeout } from '../shared/ai';
-import { badge, button, chip, h, pre, section } from '../shared/dom';
+import { availability, call, createAndCacheSession, errText, formatMs, getCachedSession, keynoteMode, timed, warmSession, withTimeout } from '../shared/ai';
+import { badge, button, chip, h, pre, section, withBusy } from '../shared/dom';
 
 type Suggestion = { api: string; why: string; fallback: string; firstStep: string };
+
+const OPTIONS = { expectedOutputs: [{ type: 'text', languages: ['en'] }] };
+const RUN_TIMEOUT = 30_000;
+const DOWNLOAD_TIMEOUT = 180_000;
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -67,44 +71,74 @@ app.append(
   ),
 );
 
+/** The deck calls this hook when the demo iframe loads; warm happens in this realm. */
+async function warmDemo(): Promise<void> {
+  await warmSession('LanguageModel', OPTIONS);
+}
+(window as any).__warmDemo = () => warmDemo();
+
 async function downloadModel(): Promise<void> {
-  downloadButton.disabled = true;
-  state.textContent = 'Prompt API: checking/downloading…';
-  state.className = 'badge badge-warn';
-  try {
-    const opts = { expectedOutputs: [{ type: 'text', languages: ['en'] }] };
-    const st = await availability('LanguageModel', opts);
-    if (st !== 'unavailable') { const s = await withTimeout((globalThis as any).LanguageModel.create(opts), 180000, 'LanguageModel.create()') as { destroy?: () => void }; s.destroy?.(); }
-    const next = await availability('LanguageModel', opts);
-    state.textContent = `Prompt API: ${next}`;
-    state.className = `badge badge-${next === 'available' ? 'ok' : 'warn'}`;
-  } catch (e) { state.textContent = `Prompt API: ${errText(e)}`; state.className = 'badge badge-bad'; }
-  finally { downloadButton.disabled = false; }
+  await withBusy(downloadButton, 'Downloading…', async () => {
+    state.textContent = 'Prompt API: checking/downloading…';
+    state.className = 'badge badge-warn';
+    try {
+      if (getCachedSession('LanguageModel', OPTIONS)) {
+        state.textContent = 'Prompt API: ready (cached)';
+        state.className = 'badge badge-ok';
+        return;
+      }
+      const st = await availability('LanguageModel', OPTIONS);
+      if (st === 'unavailable') {
+        state.textContent = `Prompt API: ${st}`;
+        state.className = 'badge badge-warn';
+        return;
+      }
+      await createAndCacheSession('LanguageModel', OPTIONS, DOWNLOAD_TIMEOUT);
+      state.textContent = 'Prompt API: ready (cached)';
+      state.className = 'badge badge-ok';
+    } catch (e) {
+      state.textContent = `Prompt API: ${errText(e)}`;
+      state.className = 'badge badge-bad';
+    }
+  });
 }
 
 async function run(): Promise<void> {
-  runButton.disabled = true;
-  tCreate.set('—'); tPrompt.set('—');
-  const text = useCase.value.trim();
-  const c = constraint.value;
-  if (!text) { runButton.disabled = false; return; }
-  if (keynoteMode()) { renderSuggestion(localSuggest(text, c), 'canned/local'); tPrompt.set('canned'); runButton.disabled = false; return; }
-  const schema = { type: 'object', properties: { api: { type: 'string' }, why: { type: 'string' }, fallback: { type: 'string' }, firstStep: { type: 'string' } }, required: ['api', 'why', 'fallback', 'firstStep'], additionalProperties: false };
-  const prompt = `You are helping a web developer choose a browser built-in AI API.
+  await withBusy(runButton, 'Running…', async () => {
+    tCreate.set('—'); tPrompt.set('—');
+    const text = useCase.value.trim();
+    const c = constraint.value;
+    if (!text) return;
+    if (keynoteMode()) { renderSuggestion(localSuggest(text, c), 'canned/local'); tPrompt.set('canned'); return; }
+    const schema = { type: 'object', properties: { api: { type: 'string' }, why: { type: 'string' }, fallback: { type: 'string' }, firstStep: { type: 'string' } }, required: ['api', 'why', 'fallback', 'firstStep'], additionalProperties: false };
+    const prompt = `You are helping a web developer choose a browser built-in AI API.
 Audience use case: ${text}
 Constraint: ${c}
 Pick the best fit from: Language Detector, Translator, Summarizer, Prompt API, Writer, Rewriter, Proofreader, or hybrid/cloud.
 Be practical. Prefer narrow task APIs when they fit. Include a fallback. Return JSON.`;
-  try {
-    const opts = { expectedOutputs: [{ type: 'text', languages: ['en'] }] };
-    const st = await availability('LanguageModel', opts);
-    if (st !== 'available') throw new Error(`Prompt API is ${st}`);
-    const created = await timed(() => createSession('LanguageModel', opts, 60_000));
-    tCreate.set(formatMs(created.ms));
-    const prompted = await timed(async () => String(await call(created.value, 'prompt', prompt, { responseConstraint: schema })));
-    tPrompt.set(formatMs(prompted.ms));
-    renderSuggestion(JSON.parse(prompted.value) as Suggestion, 'Prompt API');
-  } catch (error) {
-    renderSuggestion(localSuggest(text, c), `local fallback (${errText(error)})`);
-  } finally { runButton.disabled = false; }
+    try {
+      let session = getCachedSession('LanguageModel', OPTIONS);
+      if (session) {
+        tCreate.set('cached');
+      } else {
+        const st = await availability('LanguageModel', OPTIONS, 5_000);
+        if (st !== 'available') throw new Error(`Prompt API is ${st}`);
+        const created = await timed(() => createAndCacheSession('LanguageModel', OPTIONS, RUN_TIMEOUT));
+        session = created.value;
+        tCreate.set(formatMs(created.ms));
+      }
+      const prompted = await timed(async () => {
+        const value = await withTimeout(
+          Promise.resolve(call(session!, 'prompt', prompt, { responseConstraint: schema })),
+          RUN_TIMEOUT,
+          'LanguageModel.prompt()',
+        );
+        return String(value);
+      });
+      tPrompt.set(formatMs(prompted.ms));
+      renderSuggestion(JSON.parse(prompted.value) as Suggestion, 'Prompt API');
+    } catch (error) {
+      renderSuggestion(localSuggest(text, c), `local fallback (${errText(error)})`);
+    }
+  });
 }

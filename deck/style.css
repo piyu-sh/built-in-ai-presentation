@@ -453,3 +453,90 @@ body.presenter .drawer { transform: none; }
   .title-visual { position: relative; right: auto; top: auto; transform: none; width: min(100%, 520px); margin: 10px 0 0; }
   .slide.title h1 { max-width: 14ch; }
 }
+
+/* Light mode: high-specificity overrides for every dark literal above. */
+:root[data-theme="light"] {
+  --sans: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --light-surface: #ffffff;
+  --light-surface-2: #eaf1fb;
+  --light-line: #c4d2e6;
+  --light-ink: #152238;
+  --light-muted: #526784;
+}
+
+:root[data-theme="light"] .tone-cyan { --tone: #075985; background: rgba(7,89,133,.08); }
+:root[data-theme="light"] .tone-violet { --tone: #6d28d9; background: rgba(109,40,217,.08); }
+:root[data-theme="light"] .tone-green { --tone: #047857; background: rgba(4,120,87,.08); }
+:root[data-theme="light"] .tone-amber { --tone: #b45309; background: rgba(180,83,9,.08); }
+:root[data-theme="light"] .tone-red { --tone: #b91c1c; background: rgba(185,28,28,.08); }
+:root[data-theme="light"] .tone-slate { --tone: #475569; background: rgba(71,85,105,.08); }
+
+:root[data-theme="light"] .slide .card,
+:root[data-theme="light"] .slide .stat,
+:root[data-theme="light"] .slide .takeaway {
+  background: rgba(255,255,255,.9);
+  border-color: var(--light-line);
+  color: var(--light-ink);
+  box-shadow: 0 14px 34px rgba(67,92,132,.12);
+}
+:root[data-theme="light"] .slide.title .title-author { color: var(--light-muted); }
+
+:root[data-theme="light"] .title-visual svg stop[stop-color="#67e8f9"] { stop-color: #0284c7; }
+:root[data-theme="light"] .title-visual svg stop[stop-color="#a78bfa"] { stop-color: #7c3aed; }
+:root[data-theme="light"] .title-visual svg stop[stop-color="#18253f"] { stop-color: #dbeafe; }
+:root[data-theme="light"] .title-visual svg stop[stop-color="#0d1628"] { stop-color: #eef4ff; }
+:root[data-theme="light"] .title-visual svg rect[fill="url(#tbg)"] { fill: #f8fbff; stroke: var(--light-line); }
+:root[data-theme="light"] .title-visual svg text[fill="#9fb0cf"] { fill: var(--light-muted); }
+:root[data-theme="light"] .title-visual svg text[fill="#67e8f9"] { fill: #075985; }
+:root[data-theme="light"] .title-visual svg text[fill="#dbe7ff"] { fill: var(--light-ink); }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(17,27,48,.72)"] { fill: rgba(255,255,255,.94); stroke: var(--light-line); }
+:root[data-theme="light"] .title-visual svg text[fill="#a78bfa"] { fill: #6d28d9; }
+:root[data-theme="light"] .title-visual svg text[fill="#6ee7b7"] { fill: #047857; }
+:root[data-theme="light"] .title-visual svg text[fill="#fcd34d"] { fill: #b45309; }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(110,231,183,.08)"] { fill: rgba(4,120,87,.08); stroke: rgba(4,120,87,.3); }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(103,232,249,.08)"] { fill: rgba(7,89,133,.08); stroke: rgba(7,89,133,.3); }
+
+:root[data-theme="light"] .slide.decision .df-node,
+:root[data-theme="light"] .slide.decision .df-fallback-ref {
+  background: rgba(255,255,255,.92);
+  border-color: var(--light-line);
+  box-shadow: 0 14px 34px rgba(67,92,132,.1);
+}
+:root[data-theme="light"] .slide.decision .df-q { color: var(--light-ink); }
+:root[data-theme="light"] .slide.decision .df-a { color: var(--light-muted); }
+:root[data-theme="light"] .slide.decision .df-arrow { color: var(--light-muted); }
+:root[data-theme="light"] .slide.decision .df-arrow-line { background: #9fb4d1; }
+:root[data-theme="light"] .slide.decision .df-arrow-head { color: #64748b; }
+:root[data-theme="light"] .slide.decision .df-arrow-text { color: #334155; background: #edf3fb; border-color: #cbd5e1; }
+:root[data-theme="light"] .slide.decision .df-yes .df-arrow-text { color: #047857; background: #ecfdf5; border-color: #a7f3d0; }
+:root[data-theme="light"] .slide.decision .df-no .df-arrow-text { color: #b91c1c; background: #fff1f2; border-color: #fecaca; }
+:root[data-theme="light"] .slide.decision .df-merge-note { color: #991b1b; background: #fff1f2; border-color: #fecaca; }
+:root[data-theme="light"] .mermaid-flow svg { filter: drop-shadow(0 12px 24px rgba(71,97,136,.12)); }
+
+:root[data-theme="light"] .slide.demo iframe.demo { background: #f8fbff; }
+:root[data-theme="light"] .demo-label { color: #334155; border-color: #cbd5e1; }
+:root[data-theme="light"] .demo-label i { background: #0284c7; }
+
+:root[data-theme="light"] .slide.code pre.code { background: rgba(255,255,255,.94); color: #1e293b; border-color: #cbd5e1; }
+:root[data-theme="light"] .slide.code pre.code .kw { color: #7c3aed; }
+:root[data-theme="light"] .slide.code pre.code .fn { color: #0369a1; }
+:root[data-theme="light"] .slide.code pre.code .str { color: #047857; }
+:root[data-theme="light"] .slide.code pre.code .num { color: #b45309; }
+:root[data-theme="light"] .slide.code pre.code .cm { color: #64748b; }
+:root[data-theme="light"] .slide.code pre.code .op { color: #be185d; }
+:root[data-theme="light"] .slide.code .code-line.active { background: rgba(2,132,199,.1); border-left-color: #0284c7; }
+:root[data-theme="light"] .slide.code .code-step-bar { background: rgba(255,255,255,.92); color: #334155; border-color: #cbd5e1; }
+:root[data-theme="light"] .slide.code .code-step-dots .dot { background: #cbd5e1; }
+:root[data-theme="light"] .slide.code .code-step-dots .dot.active { background: #0284c7; }
+:root[data-theme="light"] .slide.code .code-step-note { color: #334155; }
+:root[data-theme="light"] .slide.code .code-step-hint { color: #64748b; }
+
+:root[data-theme="light"] body.presenter .drawer { background: rgba(248,251,255,.97); border-left-color: #cbd5e1; color: var(--light-ink); }
+:root[data-theme="light"] body.presenter .drawer h3 { color: var(--light-ink); }
+:root[data-theme="light"] body.presenter .drawer li { color: #334155; }
+:root[data-theme="light"] body.presenter .drawer-meta,
+:root[data-theme="light"] body.presenter .drawer-tip,
+:root[data-theme="light"] body.presenter .drawer .next,
+:root[data-theme="light"] body.presenter .drawer .readiness { color: var(--light-muted); }
+:root[data-theme="light"] body.presenter .ctrl { background: #ffffff; border-color: #cbd5e1; color: var(--light-ink); }
+:root[data-theme="light"] body.presenter .drawer-shortcuts { color: #64748b; }

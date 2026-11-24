@@ -514,27 +514,24 @@ async function warmNow(): Promise<void> {
   applyPrewarm(await prewarm());
 }
 
+/**
+ * The iframe owns its own sessions and exact create() options. The deck only
+ * asks the demo to warm itself; it never creates or destroys sessions here.
+ */
 async function prewarmFor(slideId: string): Promise<void> {
   if (keynoteMode()) return;
+  if (!slides.some((slide) => slide.id === slideId && slide.demo)) return;
+  const contentWindow = stage.querySelector<HTMLIFrameElement>('iframe.demo')?.contentWindow;
+  if (!contentWindow) return;
+  const frame = contentWindow as Window & { __warmDemo?: () => Promise<unknown> };
+  // A freshly loaded module can register the hook a tick after the load event.
+  let warm = frame.__warmDemo;
+  for (let attempt = 0; !warm && attempt < 10; attempt++) {
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50));
+    warm = frame.__warmDemo;
+  }
   try {
-    const ai = await import('../demos/shared/ai');
-    const warmIfAvailable = async (name: string, opts?: Record<string, unknown>) => {
-      const st = await ai.availability(name, opts);
-      if (st === 'available') { const s = await ai.createSession(name, opts, 60_000); (s as any).destroy?.(); }
-    };
-    if (slideId === 'cold-open') {
-      await Promise.allSettled([
-        warmIfAvailable('LanguageDetector'),
-        warmIfAvailable('Translator', { sourceLanguage: 'fr', targetLanguage: 'en' }),
-        warmIfAvailable('Summarizer', { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: 'en' }),
-      ]);
-    } else if (slideId === 'condense') {
-      await warmIfAvailable('Summarizer', { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: 'en' });
-    } else if (slideId === 'extract' || slideId === 'audience-input') {
-      await prewarm();
-    } else if (slideId === 'injection') {
-      await warmIfAvailable('Translator', { sourceLanguage: 'fr', targetLanguage: 'en' });
-    }
+    await warm?.call(frame);
   } catch { /* best effort */ }
 }
 
@@ -577,6 +574,12 @@ const THEME_KEY = 'builtin-ai:theme';
 function applyTheme(theme: 'dark' | 'light'): void {
   document.documentElement.dataset.theme = theme;
   try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+  for (const iframe of stage.querySelectorAll<HTMLIFrameElement>('iframe.demo')) {
+    try {
+      const doc = iframe.contentDocument;
+      if (doc?.documentElement) doc.documentElement.dataset.theme = theme;
+    } catch { /* ignore unloaded or cross-origin iframes */ }
+  }
   if (slides[index]?.kind === 'decision' && mermaidFlowHost?.isConnected) {
     void renderMermaidFlow(mermaidFlowHost, slides[index]!);
   }

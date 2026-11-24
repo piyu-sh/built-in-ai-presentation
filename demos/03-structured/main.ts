@@ -1,6 +1,22 @@
-import { availability, call, createSession, errText, formatMs, keynoteMode, timed, withTimeout } from '../shared/ai';
-import { badge, button, chip, codeBlock, h, pre, section } from '../shared/dom';
+import { availability, call, createAndCacheSession, errText, formatMs, getCachedSession, keynoteMode, timed, warmSession, withTimeout } from '../shared/ai';
+import { badge, button, chip, codeBlock, h, pre, section, withBusy } from '../shared/dom';
 import { CANNED, INVOICE_EMAIL, SCHEMAS, type SchemaKey } from '../shared/data';
+
+const RUN_TIMEOUT = 30_000;
+const DOWNLOAD_TIMEOUT = 180_000;
+const PROMPT_BASE = {
+  initialPrompts: [{
+    role: 'system',
+    content: 'Extract the requested fields. Use an empty string when a field is genuinely absent. Never guess. Return JSON only.',
+  }],
+  expectedInputs: [{ type: 'text', languages: ['en'] }],
+  expectedOutputs: [{ type: 'text', languages: ['en'] }],
+} as const;
+
+/** One schema = one option set; availability(), create() and warm() all use it unchanged. */
+function promptOptions(key: SchemaKey): Record<string, unknown> {
+  return { ...PROMPT_BASE, responseConstraint: SCHEMAS[key].schema };
+}
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -85,23 +101,40 @@ app.append(
 );
 syncSchema();
 
+/** The deck calls this hook when the demo iframe loads; warm happens in this realm. */
+async function warmDemo(): Promise<void> {
+  await Promise.allSettled(
+    (Object.keys(SCHEMAS) as SchemaKey[]).map((key) => warmSession('LanguageModel', promptOptions(key))),
+  );
+}
+(window as any).__warmDemo = () => warmDemo();
+
 async function downloadModel(): Promise<void> {
-  downloadButton.disabled = true;
-  stateBadge.textContent = 'Prompt API: downloading/checking…';
-  stateBadge.className = 'badge badge-warn';
-  try {
-    const opts = { expectedInputs: [{ type: 'text', languages: ['en'] }], expectedOutputs: [{ type: 'text', languages: ['en'] }] };
-    const st = await availability('LanguageModel', opts);
-    if (st !== 'unavailable') {
-      const s = await withTimeout((globalThis as any).LanguageModel.create(opts), 180000, 'LanguageModel.create()') as { destroy?: () => void };
-      s.destroy?.();
+  await withBusy(downloadButton, 'Downloading…', async () => {
+    stateBadge.textContent = 'Prompt API: downloading/checking…';
+    stateBadge.className = 'badge badge-warn';
+    try {
+      const opts = promptOptions(schemaKey);
+      const cached = getCachedSession('LanguageModel', opts);
+      if (cached) {
+        stateBadge.textContent = 'Prompt API: ready (cached)';
+        stateBadge.className = 'badge badge-ok';
+        return;
+      }
+      const st = await availability('LanguageModel', opts);
+      if (st === 'unavailable') {
+        stateBadge.textContent = `Prompt API: ${st}`;
+        stateBadge.className = 'badge badge-warn';
+        return;
+      }
+      await createAndCacheSession('LanguageModel', opts, DOWNLOAD_TIMEOUT);
+      stateBadge.textContent = 'Prompt API: ready (cached)';
+      stateBadge.className = 'badge badge-ok';
+    } catch (e) {
+      stateBadge.textContent = `Prompt API: ${errText(e)}`;
+      stateBadge.className = 'badge badge-bad';
     }
-    stateBadge.textContent = `Prompt API: ${await availability('LanguageModel', opts)}`;
-    stateBadge.className = 'badge badge-ok';
-  } catch (e) {
-    stateBadge.textContent = `Prompt API: ${errText(e)}`;
-    stateBadge.className = 'badge badge-bad';
-  } finally { downloadButton.disabled = false; }
+  });
 }
 
 function tryParseJson(text: string): { ok: true; value: unknown } | { ok: false; error: string } {
@@ -137,61 +170,72 @@ function renderObject(value: unknown): void {
 }
 
 async function run(): Promise<void> {
-  runButton.disabled = true;
-  rawOutput.set('—');
-  fields.replaceChildren();
-  tCreate.set('—');
-  tPrompt.set('—');
-  tParse.set('—');
+  await withBusy(runButton, 'Running…', async () => {
+    rawOutput.set('—');
+    fields.replaceChildren();
+    tCreate.set('—');
+    tPrompt.set('—');
+    tParse.set('—');
 
-  if (keynoteMode()) {
-    const canned = CANNED.structured[schemaKey];
-    rawOutput.set(JSON.stringify(canned, null, 2));
-    renderObject(canned);
-    stateBadge.textContent = 'Prompt API: keynote mode';
-    stateBadge.className = 'badge badge-warn';
-    tPrompt.set('canned');
-    runButton.disabled = false;
-    return;
-  }
-
-  const createOptions = {
-    initialPrompts: [{
-      role: 'system',
-      content: 'Extract the requested fields. Use an empty string when a field is genuinely absent. Never guess. Return JSON only.',
-    }],
-    expectedInputs: [{ type: 'text', languages: ['en'] }],
-    expectedOutputs: [{ type: 'text', languages: ['en'] }],
-  };
-
-  try {
-    const state = await availability('LanguageModel', createOptions);
-    stateBadge.textContent = `Prompt API: ${state}`;
-    stateBadge.className = `badge badge-${state === 'available' ? 'ok' : 'warn'}`;
-    if (state !== 'available') throw new Error(`Prompt API is ${state} on this machine. Click Download model once, or use canned mode.`);
-    const created = await timed(() => createSession('LanguageModel', createOptions, 90_000));
-    tCreate.set(formatMs(created.ms));
-    const promptText = `Return ONLY valid JSON matching the schema. No markdown, no explanation.\n\n${textArea.value}`;
-    let prompted = await timed(async () => String(await call(created.value, 'prompt', promptText, { responseConstraint: SCHEMAS[schemaKey].schema })));
-    let parsed = tryParseJson(prompted.value);
-    if (!parsed.ok) {
-      // Retry once - some model states return prose around JSON
-      const retry = await timed(async () => String(await call(created.value, 'prompt', `Extract JSON only. ${textArea.value}`, { responseConstraint: SCHEMAS[schemaKey].schema })));
-      prompted = { value: `${prompted.value}\n\n--- retry ---\n${retry.value}`, ms: prompted.ms + retry.ms };
-      parsed = tryParseJson(retry.value);
+    if (keynoteMode()) {
+      const canned = CANNED.structured[schemaKey];
+      rawOutput.set(JSON.stringify(canned, null, 2));
+      renderObject(canned);
+      stateBadge.textContent = 'Prompt API: keynote mode';
+      stateBadge.className = 'badge badge-warn';
+      tPrompt.set('canned');
+      return;
     }
-    rawOutput.set(prompted.value);
-    tPrompt.set(formatMs(prompted.ms));
-    if (!parsed.ok) throw new Error(`JSON parse failed: ${parsed.error}`);
-    renderObject(parsed.value);
-    tParse.set('ok');
-    const destroy = created.value['destroy'];
-    if (typeof destroy === 'function') destroy.call(created.value);
-  } catch (error) {
-    rawOutput.set(`${errText(error)}\n\nKeynote output:\n${JSON.stringify(CANNED.structured[schemaKey], null, 2)}`);
-    stateBadge.textContent = 'Prompt API: fallback';
-    stateBadge.className = 'badge badge-warn';
-  } finally {
-    runButton.disabled = false;
-  }
+
+    const opts = promptOptions(schemaKey);
+    try {
+      let session = getCachedSession('LanguageModel', opts);
+      if (session) {
+        tCreate.set('cached');
+        stateBadge.textContent = 'Prompt API: ready (cached)';
+        stateBadge.className = 'badge badge-ok';
+      } else {
+        const state = await availability('LanguageModel', opts, 5_000);
+        stateBadge.textContent = `Prompt API: ${state}`;
+        stateBadge.className = `badge badge-${state === 'available' ? 'ok' : 'warn'}`;
+        if (state !== 'available') throw new Error(`Prompt API is ${state} on this machine. Click Download model once, or use canned mode.`);
+        const created = await timed(() => createAndCacheSession('LanguageModel', opts, RUN_TIMEOUT));
+        session = created.value;
+        tCreate.set(formatMs(created.ms));
+      }
+      const schema = SCHEMAS[schemaKey].schema;
+      const promptText = `Return ONLY valid JSON matching the schema. No markdown, no explanation.\n\n${textArea.value}`;
+      let prompted = await timed(async () => {
+        const value = await withTimeout(
+          Promise.resolve(call(session!, 'prompt', promptText, { responseConstraint: schema })),
+          RUN_TIMEOUT,
+          'LanguageModel.prompt()',
+        );
+        return String(value);
+      });
+      let parsed = tryParseJson(prompted.value);
+      if (!parsed.ok) {
+        // Retry once - some model states return prose around JSON
+        const retry = await timed(async () => {
+          const value = await withTimeout(
+            Promise.resolve(call(session!, 'prompt', `Extract JSON only. ${textArea.value}`, { responseConstraint: schema })),
+            RUN_TIMEOUT,
+            'LanguageModel.prompt() retry',
+          );
+          return String(value);
+        });
+        prompted = { value: `${prompted.value}\n\n--- retry ---\n${retry.value}`, ms: prompted.ms + retry.ms };
+        parsed = tryParseJson(retry.value);
+      }
+      rawOutput.set(prompted.value);
+      tPrompt.set(formatMs(prompted.ms));
+      if (!parsed.ok) throw new Error(`JSON parse failed: ${parsed.error}`);
+      renderObject(parsed.value);
+      tParse.set('ok');
+    } catch (error) {
+      rawOutput.set(`${errText(error)}\n\nKeynote output:\n${JSON.stringify(CANNED.structured[schemaKey], null, 2)}`);
+      stateBadge.textContent = 'Prompt API: fallback';
+      stateBadge.className = 'badge badge-warn';
+    }
+  });
 }

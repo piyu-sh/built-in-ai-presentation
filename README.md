@@ -49,6 +49,12 @@ npm run preview   # serve dist/
 
 It is the old “keynote mode”, renamed because the old label was unclear. When ON, every demo shows recorded output captured from this same browser and says so on screen. Use it if the model is missing, still downloading, or too slow on venue Wi-Fi. It is a **fallback, not the default**.
 
+### Warm-up behavior
+
+- When a demo iframe loads, the deck calls that demo's `window.__warmDemo()` hook. Each demo warms its own sessions, in its own realm, with the exact options used by `availability()` and `create()` — the deck never creates or destroys model sessions itself.
+- Warm-up never blocks the stage. Run buttons show `Running…` with ~30s creation/inference timeouts and fall back immediately if the API says `downloadable`, `downloading`, or `unavailable`; a cached session always wins.
+- Explicit **Download** buttons can take minutes on first provisioning. They show `Downloading…`, never disable **Run**, and cache sessions for reuse instead of destroying them.
+
 ## Presenting with one display vs two
 
 - **Two displays / extended desktop:** press `W` and move `presenter.html` to the speaker screen. It shows notes, next slide, timer, model readiness, and navigation, and stays in sync with the audience deck.

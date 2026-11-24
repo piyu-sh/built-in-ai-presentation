@@ -28,6 +28,25 @@ export function button(label: string, onClick: () => void, cls = ''): HTMLButton
   return b;
 }
 
+/** Short, explicit busy state for action buttons. Never hides fallback output. */
+export async function withBusy<T>(
+  node: HTMLButtonElement,
+  busyLabel: string,
+  task: () => Promise<T>,
+): Promise<T> {
+  const original = node.textContent ?? '';
+  node.disabled = true;
+  node.textContent = busyLabel;
+  node.setAttribute('aria-busy', 'true');
+  try {
+    return await task();
+  } finally {
+    node.disabled = false;
+    node.textContent = original;
+    node.removeAttribute('aria-busy');
+  }
+}
+
 export function pre(label: string): { root: HTMLElement; set: (text: string) => void } {
   const body = h('pre', { class: 'mono output', text: '—' });
   const root = h('section', { class: 'panel' }, h('h3', { text: label }), body);

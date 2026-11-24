@@ -4,6 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Demo — condense a review thread</title>
+    <script>
+      (() => {
+        const params = new URLSearchParams(location.search);
+        let saved = '';
+        try { saved = localStorage.getItem('builtin-ai:theme') || ''; } catch { /* ignore */ }
+        const theme = params.get('theme') || saved || 'dark';
+        document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+      })();
+    </script>
     <link rel="stylesheet" href="../shared/theme.css" />
   </head>
   <body>

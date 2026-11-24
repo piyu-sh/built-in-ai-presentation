@@ -125,16 +125,50 @@ export function cacheSession(name: string, options: Record<string, unknown>, ses
   SESSION_CACHE.set(sessionKey(name, options), session);
 }
 
+const INFLIGHT = new Map<string, Promise<BuiltinSession>>();
+
 export async function createAndCacheSession(
   name: string,
   options: Record<string, unknown> = {},
   timeout = 180_000,
 ): Promise<BuiltinSession> {
+  const key = sessionKey(name, options);
   const cached = getCachedSession(name, options);
   if (cached) return cached;
-  const session = await createSession(name, options, timeout);
-  cacheSession(name, options, session);
-  return session;
+  const pending = INFLIGHT.get(key);
+  if (pending) return pending;
+  const creation = createSession(name, options, timeout)
+    .then((session) => {
+      cacheSession(name, options, session);
+      return session;
+    })
+    .finally(() => INFLIGHT.delete(key));
+  INFLIGHT.set(key, creation);
+  return creation;
+}
+
+/**
+ * Background warm-up. It never blocks a run button: if the model is already
+ * resident we create/cache a session; if it needs provisioning we leave that
+ * to an explicit Download click.
+ */
+export async function warmSession(
+  name: string,
+  options: Record<string, unknown>,
+  timeout = 25_000,
+): Promise<{ status: 'ready' | 'busy' | 'unavailable' | 'failed'; detail: string }> {
+  if (getCachedSession(name, options)) return { status: 'ready', detail: 'cached' };
+  const state = await availability(name, options, 3_000);
+  if (state === 'unavailable' || state === 'error' || state === 'unknown') {
+    return { status: 'unavailable', detail: state };
+  }
+  if (state === 'downloading') return { status: 'busy', detail: 'downloading' };
+  try {
+    await createAndCacheSession(name, options, timeout);
+    return { status: 'ready', detail: 'ready' };
+  } catch (error) {
+    return { status: 'failed', detail: errText(error) };
+  }
 }
 
 export type Timed<T> = { value: T; ms: number };
@@ -182,34 +216,29 @@ export function call(session: Record<string, (...args: unknown[]) => unknown>, m
   return fn.apply(session, args);
 }
 
-/** Fire one tiny throwaway prompt so the model is resident before the talk starts. */
+/** Keep one Prompt API session cached so the deck status reflects a real warm model. */
 export async function prewarm(): Promise<{ status: 'unsupported' | 'warm' | 'failed'; detail: string }> {
   if (!apiExists('LanguageModel')) {
     return { status: 'unsupported', detail: 'LanguageModel is not defined in this browser' };
   }
   const start = performance.now();
+  const options = { expectedOutputs: [{ type: 'text', languages: ['en'] }] };
   try {
-    const session = await createSession('LanguageModel', {
-      expectedOutputs: [{ type: 'text', languages: ['en'] }],
-    }, 90_000);
+    const session = await createAndCacheSession('LanguageModel', options, 25_000);
     const result = await withTimeout(
       Promise.resolve(call(session, 'prompt', 'Reply with exactly: OK')),
-      90_000,
+      25_000,
       'warmup prompt',
     );
-    const destroy = session['destroy'];
-    if (typeof destroy === 'function') destroy.call(session);
     void result;
-    return {
-      status: 'warm',
-      detail: `resident in ${Math.round(performance.now() - start)}ms`,
-    };
+    return { status: 'warm', detail: `Prompt API resident in ${Math.round(performance.now() - start)}ms` };
   } catch (error) {
     return { status: 'failed', detail: errText(error) };
   }
 }
 
 export function keynoteMode(): boolean {
+  if (keynoteForcedOff()) return false;
   try {
     return new URLSearchParams(location.search).has('canned') || localStorage.getItem(KEYNOTE_KEY) === '1';
   } catch {

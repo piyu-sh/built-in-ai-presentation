@@ -1,6 +1,23 @@
-import { availability, call, createAndCacheSession, createSession, errText, formatMs, getCachedSession, keynoteMode, timed, withTimeout } from '../shared/ai';
-import { badge, button, chip, h, pre, section } from '../shared/dom';
+import { availability, call, createAndCacheSession, errText, formatMs, getCachedSession, keynoteMode, timed, warmSession, withTimeout } from '../shared/ai';
+import { badge, button, chip, h, pre, section, withBusy } from '../shared/dom';
 import { CANNED, SAMPLES } from '../shared/data';
+
+const RUN_TIMEOUT = 30_000;
+const DOWNLOAD_TIMEOUT = 180_000;
+const DETECTOR_OPTIONS: Record<string, unknown> = {};
+const SUMMARIZER_BASE = { type: 'tldr', format: 'plain-text', length: 'short' } as const;
+
+function translatorOptions(sourceLanguage: string, targetLanguage: string): Record<string, unknown> {
+  return { sourceLanguage, targetLanguage };
+}
+
+function summarizerOptions(outputLanguage: string): Record<string, unknown> {
+  return { ...SUMMARIZER_BASE, outputLanguage };
+}
+
+function translationTarget(sourceLanguage: string): string {
+  return target.value === sourceLanguage ? 'en' : target.value;
+}
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -29,27 +46,51 @@ for (const sample of SAMPLES) {
     sampleSource = sample.lang;
     for (const x of samples.querySelectorAll('button')) x.classList.remove('active');
     b.classList.add('active');
+    void warmSession('Translator', translatorOptions(sampleSource, translationTarget(sampleSource)));
   });
   if (sample.label === 'Français') b.classList.add('active');
   samples.append(b);
 }
 
+/** The deck calls this hook when the demo iframe loads; warm happens in this realm. */
+async function warmDemo(): Promise<void> {
+  await Promise.allSettled([
+    warmSession('LanguageDetector', DETECTOR_OPTIONS),
+    warmSession('Translator', translatorOptions(sampleSource, translationTarget(sampleSource))),
+    warmSession('Summarizer', summarizerOptions(target.value)),
+  ]);
+}
+(window as any).__warmDemo = () => warmDemo();
+
+target.addEventListener('change', () => {
+  void warmSession('Translator', translatorOptions(sampleSource, translationTarget(sampleSource)));
+  void warmSession('Summarizer', summarizerOptions(target.value));
+});
+
 async function downloadModels(): Promise<void> {
-  downloadButton.disabled = true;
-  const dest = target.value;
-  try {
+  await withBusy(downloadButton, 'Downloading…', async () => {
+    const dest = target.value;
     setBadge(detectorBadge, 'detector: checking', 'idle');
     try {
-      const dState = await availability('LanguageDetector');
-      if (dState !== 'unavailable') await createSession('LanguageDetector');
-      setBadge(detectorBadge, `detector: ${await availability('LanguageDetector')}`, 'ok');
+      const cached = getCachedSession('LanguageDetector', DETECTOR_OPTIONS);
+      if (cached) {
+        setBadge(detectorBadge, 'detector: ready (cached)', 'ok');
+      } else {
+        const dState = await availability('LanguageDetector', DETECTOR_OPTIONS);
+        if (dState === 'unavailable') {
+          setBadge(detectorBadge, `detector: ${dState}`, 'warn');
+        } else {
+          await createAndCacheSession('LanguageDetector', DETECTOR_OPTIONS, DOWNLOAD_TIMEOUT);
+          setBadge(detectorBadge, 'detector: ready (cached)', 'ok');
+        }
+      }
     } catch (e) {
       setBadge(detectorBadge, `detector: ${errText(e)}`, 'bad');
     }
 
     setBadge(translatorBadge, 'translator: downloading…', 'idle');
     try {
-      const tOpts = { sourceLanguage: sampleSource, targetLanguage: dest === sampleSource ? 'en' : dest };
+      const tOpts = translatorOptions(sampleSource, translationTarget(sampleSource));
       const cached = getCachedSession('Translator', tOpts);
       if (cached) {
         setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
@@ -58,7 +99,7 @@ async function downloadModels(): Promise<void> {
         if (tState === 'unavailable') {
           setBadge(translatorBadge, 'translator: unavailable', 'warn');
         } else {
-          await createAndCacheSession('Translator', tOpts, 180_000);
+          await createAndCacheSession('Translator', tOpts, DOWNLOAD_TIMEOUT);
           setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
         }
       }
@@ -68,16 +109,23 @@ async function downloadModels(): Promise<void> {
 
     setBadge(summarizerBadge, 'summarizer: checking', 'idle');
     try {
-      const sOpts = { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: dest };
-      const sState = await availability('Summarizer', sOpts);
-      if (sState !== 'unavailable') await withTimeout((globalThis as any).Summarizer.create(sOpts), 180_000, 'Summarizer.create()');
-      setBadge(summarizerBadge, `summarizer: ${await availability('Summarizer', sOpts)}`, 'ok');
+      const sOpts = summarizerOptions(dest);
+      const cached = getCachedSession('Summarizer', sOpts);
+      if (cached) {
+        setBadge(summarizerBadge, 'summarizer: ready (cached)', 'ok');
+      } else {
+        const sState = await availability('Summarizer', sOpts);
+        if (sState === 'unavailable') {
+          setBadge(summarizerBadge, `summarizer: ${sState}`, 'warn');
+        } else {
+          await createAndCacheSession('Summarizer', sOpts, DOWNLOAD_TIMEOUT);
+          setBadge(summarizerBadge, 'summarizer: ready (cached)', 'ok');
+        }
+      }
     } catch (e) {
       setBadge(summarizerBadge, `summarizer: ${errText(e)}`, 'bad');
     }
-  } finally {
-    downloadButton.disabled = false;
-  }
+  });
 }
 
 app.append(
@@ -115,82 +163,106 @@ function setBadge(el: HTMLElement, value: string, kind: 'ok' | 'warn' | 'bad' | 
 }
 
 async function run(): Promise<void> {
-  runButton.disabled = true;
-  const text = textArea.value.trim();
-  if (!text) {
-    runButton.disabled = false;
-    return;
-  }
-  const canned = keynoteMode();
-  let source = 'fr';
+  await withBusy(runButton, 'Running…', async () => {
+    const text = textArea.value.trim();
+    if (!text) return;
+    const canned = keynoteMode();
+    let source = 'fr';
 
-  try {
-    if (canned) {
-      setBadge(detectorBadge, 'detector: canned', 'warn');
-      setBadge(translatorBadge, 'translator: canned', 'warn');
-      setBadge(summarizerBadge, 'summarizer: canned', 'warn');
-      detected.set(CANNED.hello.detect);
-      translated.set(CANNED.hello.translate);
-      summarized.set(CANNED.hello.summary);
-      tDetect.set('canned');
-      tTranslate.set('canned');
-      tSummarize.set('canned');
-      return;
-    }
+    try {
+      if (canned) {
+        setBadge(detectorBadge, 'detector: canned', 'warn');
+        setBadge(translatorBadge, 'translator: canned', 'warn');
+        setBadge(summarizerBadge, 'summarizer: canned', 'warn');
+        detected.set(CANNED.hello.detect);
+        translated.set(CANNED.hello.translate);
+        summarized.set(CANNED.hello.summary);
+        tDetect.set('canned');
+        tTranslate.set('canned');
+        tSummarize.set('canned');
+        return;
+      }
 
-    const detectorState = await availability('LanguageDetector');
-    setBadge(detectorBadge, `detector: ${detectorState}`, detectorState === 'available' ? 'ok' : 'warn');
-    if (detectorState !== 'available') throw new Error(`LanguageDetector is ${detectorState}`);
-    const detector = await createSession('LanguageDetector');
-    const detectResult = await timed(async () => {
-      const value = await call(detector, 'detect', text);
-      return Array.isArray(value) ? value : [value];
-    });
-    const guess = (detectResult.value[0] as { detectedLanguage?: string } | undefined)?.detectedLanguage ?? 'und';
-    source = guess;
-    detected.set(JSON.stringify(detectResult.value, null, 2));
-    tDetect.set(formatMs(detectResult.ms));
-
-    const dest = target.value;
-    if (source === dest) {
-      translated.set(`Already ${dest} — translation skipped.`);
-      tTranslate.set('skipped');
-    } else {
-      const options = { sourceLanguage: source, targetLanguage: dest };
-      const cached = getCachedSession('Translator', options);
-      if (cached) {
-        setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
-        const result = await timed(async () => String(await call(cached, 'translate', text)));
-        translated.set(result.value);
-        tTranslate.set(formatMs(result.ms));
+      let detector = getCachedSession('LanguageDetector', DETECTOR_OPTIONS);
+      if (detector) {
+        setBadge(detectorBadge, 'detector: ready (cached)', 'ok');
       } else {
-        const translatorState = await availability('Translator', options);
-        setBadge(translatorBadge, `translator: ${translatorState}`, translatorState === 'available' ? 'ok' : 'warn');
-        if (translatorState !== 'available') {
-          translated.set(`${source}→${dest} is ${translatorState} on this browser. Click “Download models” once, then Run again.\n\nRecorded example (${source}→en):\n${CANNED.hello.translate}`);
-          tTranslate.set(translatorState);
+        const detectorState = await availability('LanguageDetector', DETECTOR_OPTIONS, 5_000);
+        setBadge(detectorBadge, `detector: ${detectorState}`, detectorState === 'available' ? 'ok' : 'warn');
+        if (detectorState !== 'available') throw new Error(`LanguageDetector is ${detectorState}`);
+        detector = await createAndCacheSession('LanguageDetector', DETECTOR_OPTIONS, RUN_TIMEOUT);
+      }
+      const detectResult = await timed(async () => {
+        const value = await withTimeout(
+          Promise.resolve(call(detector!, 'detect', text)),
+          RUN_TIMEOUT,
+          'LanguageDetector.detect()',
+        );
+        return Array.isArray(value) ? value : [value];
+      });
+      const guess = (detectResult.value[0] as { detectedLanguage?: string } | undefined)?.detectedLanguage ?? 'und';
+      source = guess;
+      detected.set(JSON.stringify(detectResult.value, null, 2));
+      tDetect.set(formatMs(detectResult.ms));
+
+      const dest = target.value;
+      if (source === dest) {
+        translated.set(`Already ${dest} — translation skipped.`);
+        tTranslate.set('skipped');
+      } else {
+        const options = translatorOptions(source, dest);
+        let translator = getCachedSession('Translator', options);
+        if (translator) {
+          setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
         } else {
-          const translator = await createAndCacheSession('Translator', options);
-          const result = await timed(async () => String(await call(translator, 'translate', text)));
+          const translatorState = await availability('Translator', options, 5_000);
+          setBadge(translatorBadge, `translator: ${translatorState}`, translatorState === 'available' ? 'ok' : 'warn');
+          if (translatorState !== 'available') {
+            translated.set(`${source}→${dest} is ${translatorState} on this browser. Click “Download models” once, then Run again.\n\nRecorded example (${source}→en):\n${CANNED.hello.translate}`);
+            tTranslate.set(translatorState);
+            translator = undefined;
+          } else {
+            translator = await createAndCacheSession('Translator', options, RUN_TIMEOUT);
+          }
+        }
+        if (translator) {
+          const result = await timed(async () => {
+            const value = await withTimeout(
+              Promise.resolve(call(translator, 'translate', text)),
+              RUN_TIMEOUT,
+              'Translator.translate()',
+            );
+            return String(value);
+          });
           translated.set(result.value);
           tTranslate.set(formatMs(result.ms));
         }
       }
-    }
 
-    const sumOpts = { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: dest };
-    const summarizerState = await availability('Summarizer', sumOpts);
-    setBadge(summarizerBadge, `summarizer: ${summarizerState}`, summarizerState === 'available' ? 'ok' : 'warn');
-    if (summarizerState !== 'available') throw new Error(`Summarizer is ${summarizerState}`);
-    const summarizer = await createSession('Summarizer', sumOpts);
-    const result = await timed(async () => String(await call(summarizer, 'summarize', text)));
-    summarized.set(result.value);
-    tSummarize.set(formatMs(result.ms));
-  } catch (error) {
-    detected.set(detected.root.querySelector('pre')?.textContent ?? '—');
-    summarized.set(`${errText(error)}\n\nKeynote output:\n${CANNED.hello.summary}`);
-    setBadge(summarizerBadge, 'fallback', 'warn');
-  } finally {
-    runButton.disabled = false;
-  }
+      const sumOpts = summarizerOptions(dest);
+      let summarizer = getCachedSession('Summarizer', sumOpts);
+      if (summarizer) {
+        setBadge(summarizerBadge, 'summarizer: ready (cached)', 'ok');
+      } else {
+        const summarizerState = await availability('Summarizer', sumOpts, 5_000);
+        setBadge(summarizerBadge, `summarizer: ${summarizerState}`, summarizerState === 'available' ? 'ok' : 'warn');
+        if (summarizerState !== 'available') throw new Error(`Summarizer is ${summarizerState}`);
+        summarizer = await createAndCacheSession('Summarizer', sumOpts, RUN_TIMEOUT);
+      }
+      const result = await timed(async () => {
+        const value = await withTimeout(
+          Promise.resolve(call(summarizer!, 'summarize', text)),
+          RUN_TIMEOUT,
+          'Summarizer.summarize()',
+        );
+        return String(value);
+      });
+      summarized.set(result.value);
+      tSummarize.set(formatMs(result.ms));
+    } catch (error) {
+      detected.set(detected.root.querySelector('pre')?.textContent ?? '—');
+      summarized.set(`${errText(error)}\n\nKeynote output:\n${CANNED.hello.summary}`);
+      setBadge(summarizerBadge, 'fallback', 'warn');
+    }
+  });
 }

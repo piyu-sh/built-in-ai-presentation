@@ -24,6 +24,9 @@
   --ok: #059669;
   --warn: #b45309;
   --bad: #dc2626;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+  --surface: #ffffff;
+  --surface-2: #edf3fb;
 }
 
 * { box-sizing: border-box; }
@@ -104,3 +107,17 @@ body { margin: 0; background: var(--bg); color: var(--text); }
 @media (max-width: 900px) {
   .p-main { grid-template-columns: 1fr; }
 }
+
+/* Light mode: keep dark values untouched; override only hardcoded dark literals. */
+:root[data-theme="light"] .p-head { background: #ffffff; }
+:root[data-theme="light"] .p-progress { background: #dbe4f1; }
+:root[data-theme="light"] .p-notes li,
+:root[data-theme="light"] .p-next-text,
+:root[data-theme="light"] .p-link { color: #334155; }
+:root[data-theme="light"] .p-btn {
+  background: #edf3fb;
+  border-color: #cbd5e1;
+  color: #152238;
+}
+:root[data-theme="light"] .p-btn:hover:not(:disabled) { border-color: #0284c7; }
+:root[data-theme="light"] .p-step { color: #526784; }

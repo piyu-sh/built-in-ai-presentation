@@ -1,9 +1,20 @@
-import { availability, call, createSession, errText, formatMs, keynoteMode, stream, timed } from '../shared/ai';
-import { badge, button, chip, codeBlock, h, pre, section } from '../shared/dom';
+import { availability, call, createAndCacheSession, errText, formatMs, getCachedSession, keynoteMode, stream, timed, warmSession, withTimeout } from '../shared/ai';
+import { badge, button, chip, codeBlock, h, pre, section, withBusy } from '../shared/dom';
 import { CANNED, REVIEWS } from '../shared/data';
 
 type Length = 'short' | 'medium' | 'long';
 type Format = 'plain-text' | 'markdown';
+
+const RUN_TIMEOUT = 30_000;
+const SUMMARIZER_BASE = {
+  type: 'tldr',
+  expectedInputLanguages: ['en', 'fr', 'es', 'ja'],
+  outputLanguage: 'en',
+} as const;
+
+function summarizerOptions(): Record<string, unknown> {
+  return { ...SUMMARIZER_BASE, format, length };
+}
 
 const LENGTHS: Array<{ label: string; value: Length }> = [
   { label: '1 sentence', value: 'short' },
@@ -81,16 +92,30 @@ if (state === 'available') {
   }
 }
 
+/** The deck calls this hook when the demo iframe loads; warm happens in this realm. */
+async function warmDemo(): Promise<void> {
+  await warmSession('Summarizer', summarizerOptions());
+}
+(window as any).__warmDemo = () => warmDemo();
+
 for (const item of [
   { label: 'plain text', value: 'plain-text' },
   { label: 'markdown', value: 'markdown' },
 ] as Array<{ label: string; value: Format }>) {
-  const b = button(item.label, () => { format = item.value; syncCode(); });
+  const b = button(item.label, () => {
+    format = item.value;
+    syncCode();
+    void warmSession('Summarizer', summarizerOptions());
+  });
   b.dataset.value = item.value;
   formatButtons.append(b);
 }
 for (const item of LENGTHS) {
-  const b = button(item.label, () => { length = item.value; syncCode(); });
+  const b = button(item.label, () => {
+    length = item.value;
+    syncCode();
+    void warmSession('Summarizer', summarizerOptions());
+  });
   b.dataset.value = item.value;
   lengthButtons.append(b);
 }
@@ -141,47 +166,52 @@ app.append(
 syncCode();
 
 async function run(): Promise<void> {
-  runButton.disabled = true;
-  result.set('');
-  tCreate.set('—');
-  tFirst.set('—');
-  tTotal.set('—');
+  await withBusy(runButton, 'Running…', async () => {
+    result.set('');
+    tCreate.set('—');
+    tFirst.set('—');
+    tTotal.set('—');
 
-  if (keynoteMode()) {
-    result.set(cannedSummary(length));
-    tFirst.set('canned');
-    tTotal.set('canned');
-    setBadge(fmtBadge, 'summarizer: keynote mode', 'warn');
-    runButton.disabled = false;
-    return;
-  }
+    if (keynoteMode()) {
+      result.set(cannedSummary(length));
+      tFirst.set('canned');
+      tTotal.set('canned');
+      setBadge(fmtBadge, 'summarizer: keynote mode', 'warn');
+      return;
+    }
 
-  const options = {
-    type: 'tldr',
-    format,
-    length,
-    expectedInputLanguages: ['en', 'fr', 'es', 'ja'],
-    outputLanguage: 'en',
-  };
-  try {
-    const state = await availability('Summarizer', options);
-    setBadge(fmtBadge, `summarizer: ${state}`, state === 'available' ? 'ok' : 'warn');
-    if (state !== 'available') throw new Error(`Summarizer is ${state} on this machine`);
-    const created = await timed(() => createSession('Summarizer', options, 60_000));
-    tCreate.set(formatMs(created.ms));
-    const iterator = call(created.value, 'summarizeStreaming', textArea.value);
-    const out = await stream(iterator, (chunk) => {
-      const el = result.root.querySelector('pre');
-      if (el) el.textContent = (el.textContent ?? '') + chunk;
-    });
-    tFirst.set(formatMs(out.firstTokenMs));
-    tTotal.set(formatMs(out.totalMs));
-  } catch (error) {
-    result.set(`${errText(error)}\n\nKeynote output:\n${cannedSummary(length)}`);
-    setBadge(fmtBadge, 'summarizer: fallback', 'warn');
-  } finally {
-    runButton.disabled = false;
-  }
+    const options = summarizerOptions();
+    try {
+      let session = getCachedSession('Summarizer', options);
+      if (session) {
+        setBadge(fmtBadge, 'summarizer: ready (cached)', 'ok');
+        tCreate.set('cached');
+      } else {
+        const state = await availability('Summarizer', options, 5_000);
+        setBadge(fmtBadge, `summarizer: ${state}`, state === 'available' ? 'ok' : 'warn');
+        if (state !== 'available') throw new Error(`Summarizer is ${state} on this machine`);
+        const created = await timed(() => createAndCacheSession('Summarizer', options, RUN_TIMEOUT));
+        session = created.value;
+        tCreate.set(formatMs(created.ms));
+      }
+      const iterator = call(session!, 'summarizeStreaming', textArea.value);
+      let live = true;
+      try {
+        const out = await withTimeout(stream(iterator, (chunk) => {
+          if (!live) return;
+          const el = result.root.querySelector('pre');
+          if (el) el.textContent = (el.textContent ?? '') + chunk;
+        }), RUN_TIMEOUT, 'Summarizer.summarizeStreaming()');
+        tFirst.set(formatMs(out.firstTokenMs));
+        tTotal.set(formatMs(out.totalMs));
+      } finally {
+        live = false;
+      }
+    } catch (error) {
+      result.set(`${errText(error)}\n\nKeynote output:\n${cannedSummary(length)}`);
+      setBadge(fmtBadge, 'summarizer: fallback', 'warn');
+    }
+  });
 }
 
 function setBadge(el: HTMLElement, label: string, kind: 'ok' | 'warn' | 'bad' | 'idle'): void {
