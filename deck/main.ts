@@ -308,8 +308,8 @@ function renderTitleVisual(): HTMLElement {
 
   // on-device chip inside browser
   svg.append(s('rect', { x: '80', y: '105', width: '240', height: '132', rx: '16', fill: 'rgba(103,232,249,.05)', stroke: 'url(#tg)', 'stroke-width': '1.5' }));
-  svg.append(s('rect', { x: '136', y: '118', width: '128', height: '34', rx: '17', fill: 'rgba(103,232,249,.14)', stroke: 'rgba(103,232,249,.45)' }));
-  svg.append(t('text', { x: '200', y: '141', 'text-anchor': 'middle', fill: '#67e8f9', 'font-size': '14', 'font-weight': '700', 'font-family': 'ui-monospace,monospace' }, 'Gemini Nano'));
+  svg.append(s('rect', { x: '124', y: '115', width: '152', height: '40', rx: '20', fill: 'rgba(103,232,249,.14)', stroke: 'rgba(103,232,249,.45)' }));
+  svg.append(t('text', { x: '200', y: '142', 'text-anchor': 'middle', fill: '#67e8f9', 'font-size': '18', 'font-weight': '700', 'font-family': 'ui-monospace,monospace' }, 'Gemini Nano'));
   svg.append(t('text', { x: '200', y: '172', 'text-anchor': 'middle', fill: '#dbe7ff', 'font-size': '11', 'font-family': 'Inter,system-ui,sans-serif' }, 'Runs locally in the browser'));
   svg.append(t('text', { x: '200', y: '190', 'text-anchor': 'middle', fill: '#9fb0cf', 'font-size': '9', 'font-family': 'Inter,system-ui,sans-serif' }, 'private · low latency · offline'));
   // shield — stays inside the on-device chip
@@ -439,7 +439,6 @@ function renderSlide(slide: Slide): HTMLElement {
     if (slide.id === 'thanks') {
       node.append(h('div', { class: 'thanks-qr' },
         h('img', { src: '/qrcode.svg', alt: 'QR code linking to Piyush Gupta’s LinkedIn profile' }),
-        h('span', { text: 'Scan for my LinkedIn' }),
       ));
     }
     if (slide.takeaways?.length && slide.id !== 'title' && slide.id !== 'thanks') {

@@ -629,32 +629,24 @@ body.presenter .drawer { transform: none; }
 }
 .thanks-qr {
   position: absolute;
-  right: var(--pad);
-  bottom: calc(var(--pad) + 54px);
+  left: 50%;
+  bottom: calc(var(--pad) + 18px);
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  transform: translateX(-50%);
 }
 .thanks-qr img {
-  width: clamp(92px, 9vw, 132px);
+  display: block;
+  width: clamp(132px, 14vw, 190px);
   height: auto;
-  padding: 8px;
+  padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 18px;
   background: #ffffff;
   box-shadow: 0 18px 44px rgba(0,0,0,.22);
-}
-.thanks-qr span {
-  color: var(--muted);
-  font: 800 10px var(--mono);
-  letter-spacing: .12em;
-  text-transform: uppercase;
 }
 :root[data-theme="light"] .title-visual svg line[stroke="#6ee7b7"] { stroke: #047857; }
 
 @media (max-width: 900px), (max-height: 680px) {
   .slide.slide-title .subtitle { max-width: none; white-space: nowrap; }
-  .thanks-qr img { width: clamp(76px, 8vw, 104px); }
+  .thanks-qr img { width: clamp(120px, 18vw, 160px); }
 }
