@@ -634,12 +634,13 @@ body.presenter .drawer { transform: none; }
   font-weight: 700;
 }
 .slide-thanks .title-author {
-  order: 1;
-  position: static;
-  right: auto;
-  bottom: auto;
-  width: 100%;
+  position: absolute;
+  right: var(--pad);
+  bottom: var(--pad);
+  z-index: 2;
+  width: auto;
   margin: 0;
+  text-align: right;
   font-size: clamp(22px, 2.6vw, 34px);
 }
 .thanks-qr {
