@@ -495,6 +495,19 @@ body.presenter .drawer { transform: none; }
 :root[data-theme="light"] .title-visual svg text[fill="#fcd34d"] { fill: #b45309; }
 :root[data-theme="light"] .title-visual svg rect[fill="rgba(110,231,183,.08)"] { fill: rgba(4,120,87,.08); stroke: rgba(4,120,87,.3); }
 :root[data-theme="light"] .title-visual svg rect[fill="rgba(103,232,249,.08)"] { fill: rgba(7,89,133,.08); stroke: rgba(7,89,133,.3); }
+:root[data-theme="light"] .title-visual svg text[fill="#eef3ff"] { fill: #1e293b; }
+:root[data-theme="light"] .title-visual svg circle[fill="#ff8a8a"] { fill: #dc2626; }
+:root[data-theme="light"] .title-visual svg circle[fill="#fcd34d"] { fill: #d97706; }
+:root[data-theme="light"] .title-visual svg circle[fill="#6ee7b7"] { fill: #047857; }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(255,255,255,.04)"] { fill: rgba(148,178,224,.16); }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(148,178,224,.12)"] { fill: rgba(148,178,224,.18); stroke: rgba(100,116,139,.28); }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(103,232,249,.05)"] { fill: rgba(2,132,199,.07); }
+:root[data-theme="light"] .title-visual svg rect[fill="rgba(103,232,249,.14)"] { fill: rgba(2,132,199,.13); stroke: rgba(2,132,199,.55); }
+:root[data-theme="light"] .title-visual svg path[fill="rgba(110,231,183,.12)"] { fill: rgba(4,120,87,.12); stroke: rgba(4,120,87,.55); }
+:root[data-theme="light"] .title-visual svg path[stroke="#6ee7b7"] { stroke: #047857; }
+:root[data-theme="light"] .title-visual svg line[stroke="#67e8f9"] { stroke: #0284c7; }
+:root[data-theme="light"] .title-visual svg line[stroke="#a78bfa"] { stroke: #6d28d9; }
+:root[data-theme="light"] .title-visual svg line[stroke="#fcd34d"] { stroke: #b45309; }
 
 :root[data-theme="light"] .slide.decision .df-node,
 :root[data-theme="light"] .slide.decision .df-fallback-ref {
@@ -524,6 +537,7 @@ body.presenter .drawer { transform: none; }
 :root[data-theme="light"] .slide.code pre.code .num { color: #b45309; }
 :root[data-theme="light"] .slide.code pre.code .cm { color: #64748b; }
 :root[data-theme="light"] .slide.code pre.code .op { color: #be185d; }
+:root[data-theme="light"] .slide.code .code-line.dim { opacity: .62; filter: saturate(.88); }
 :root[data-theme="light"] .slide.code .code-line.active { background: rgba(2,132,199,.1); border-left-color: #0284c7; }
 :root[data-theme="light"] .slide.code .code-step-bar { background: rgba(255,255,255,.92); color: #334155; border-color: #cbd5e1; }
 :root[data-theme="light"] .slide.code .code-step-dots .dot { background: #cbd5e1; }
@@ -540,3 +554,27 @@ body.presenter .drawer { transform: none; }
 :root[data-theme="light"] body.presenter .drawer .readiness { color: var(--light-muted); }
 :root[data-theme="light"] body.presenter .ctrl { background: #ffffff; border-color: #cbd5e1; color: var(--light-ink); }
 :root[data-theme="light"] body.presenter .drawer-shortcuts { color: #64748b; }
+
+/* Compact title layout: keep the visual anchored right so it never pushes
+   the heading, subtitle, or author line out of a shorter presentation window. */
+@media (max-width: 900px), (max-height: 680px) {
+  .slide.title { gap: clamp(6px, 1vh, 12px); }
+  .slide.title h1 { max-width: 12ch; font-size: clamp(42px, 6.5vw, 72px); }
+  .slide.title .subtitle { max-width: 30ch; font-size: clamp(14px, 1.5vw, 20px); }
+  .slide.title .takeaways { margin-top: 6px; }
+  .slide.title .title-visual {
+    position: absolute;
+    right: clamp(16px, 3vw, 40px);
+    top: 56%;
+    transform: translateY(-50%);
+    width: min(42vw, 340px);
+    margin: 0;
+    align-self: auto;
+  }
+  .slide.title .title-author { bottom: clamp(12px, 2vh, 20px); }
+}
+
+@media (max-width: 560px) {
+  .slide.title .title-visual { width: min(52vw, 260px); opacity: .92; }
+  .slide.title h1 { font-size: clamp(36px, 9vw, 52px); }
+}

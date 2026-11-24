@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="A 25-minute developer conference talk on built-in AI APIs in the browser, with live demos." />
+    <script>
+      (() => {
+        let saved = '';
+        try { saved = localStorage.getItem('builtin-ai:theme') || ''; } catch { /* ignore */ }
+        document.documentElement.dataset.theme = saved === 'dark' ? 'dark' : 'light';
+      })();
+    </script>
     <title>Built-In AI in the Browser — talk deck</title>
   </head>
   <body>

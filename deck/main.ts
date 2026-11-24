@@ -588,8 +588,8 @@ function applyTheme(theme: 'dark' | 'light'): void {
 function initTheme(): void {
   try {
     const saved = localStorage.getItem(THEME_KEY);
-    if (saved === 'light' || saved === 'dark') applyTheme(saved);
-  } catch { /* ignore */ }
+    applyTheme(saved === 'dark' ? 'dark' : 'light');
+  } catch { applyTheme('light'); }
 }
 
 function handleCommand(command: PresenterCommand): void {

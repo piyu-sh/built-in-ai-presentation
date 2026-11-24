@@ -9,7 +9,7 @@
         const params = new URLSearchParams(location.search);
         let saved = '';
         try { saved = localStorage.getItem('builtin-ai:theme') || ''; } catch { /* ignore */ }
-        const theme = params.get('theme') || saved || 'dark';
+        const theme = params.get('theme') || saved || 'light';
         document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
       })();
     </script>

@@ -267,7 +267,7 @@ if (state === 'available') {
     kicker: '',
     title: 'Fast when warm. Not magic when cold.',
     seconds: 90,
-    subtitle: 'Rehearsal laptop · Performance Class: Medium · not a benchmark',
+    subtitle: 'Rehearsal laptop · Performance Class: Medium · ~22 GB free · not a benchmark',
     stats: [
       { value: '3.6s', label: 'Cold create()', sub: 'session setup', tone: 'amber' },
       { value: '19s', label: 'Cold first token', sub: '141-char prompt', tone: 'red' },
@@ -278,7 +278,7 @@ if (state === 'available') {
     notes: [
       'Say the frame out loud: one rehearsal laptop, Performance Class Medium, ~22 GB free disk after cleanup. These are observations, not a cross-device benchmark.',
       'Cold create() 3,637ms, first token 19,169ms, total 20,800ms for 141 chars. Warm: create ~3ms, first token 408ms, total 2,020ms for 161 chars.',
-      'First provision took 452,858ms (~7.5 min) after freeing ~22 GB. Download speed is not the interesting number; browser provisioning and disk space dominate.',
+      'First provision took 452,858ms (~7.5 min) after freeing ~22 GB. Treat it as browser provisioning, not a download-speed test: fetch, unpacking, verification and disk writes are included, and the browser does not expose a reliable transferred-byte number.',
       'Byte-level downloadprogress did not fire in our runs, so the four availability() states are the only honest UI signal.',
       'On-device wins on privacy, latency-after-warm and per-call cost; loses on quality ceiling, fresh knowledge and reach. ~2B-class model, no internet, disk/RAM shared with the OS.',
       'Practical rules: pre-warm once per session, stream, cap output length, always have a fallback. Do not promise these numbers to users.',
