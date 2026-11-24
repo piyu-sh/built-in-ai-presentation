@@ -31,7 +31,7 @@
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
 .app, .stage { height: 100%; }
-.stage { position: relative; overflow: hidden; }
+.stage { position: relative; overflow: hidden; touch-action: pan-y; }
 
 .slide {
   --pad: clamp(28px, 5vw, 78px);

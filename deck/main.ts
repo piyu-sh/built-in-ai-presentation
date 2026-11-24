@@ -438,7 +438,7 @@ function renderSlide(slide: Slide): HTMLElement {
     }
     if (slide.id === 'thanks') {
       node.append(h('div', { class: 'thanks-qr' },
-        h('img', { src: `${import.meta.env.BASE_URL}qrcode.svg`, alt: 'QR code linking to Piyush Gupta’s LinkedIn profile' }),
+        h('img', { src: `${import.meta.env.BASE_URL}qrcode-multi.png`, alt: 'QR code with talk resources and contact links' }),
       ));
     }
     if (slide.takeaways?.length && slide.id !== 'title' && slide.id !== 'thanks') {
@@ -656,6 +656,30 @@ window.addEventListener('keydown', (event) => {
     toggleDrawer(false);
   }
 });
+
+let swipeStartX = 0;
+let swipeStartY = 0;
+let swipeActive = false;
+
+stage.addEventListener('pointerdown', (event) => {
+  if (!event.isPrimary || (event.pointerType !== 'touch' && event.pointerType !== 'pen')) return;
+  const target = event.target;
+  if (target instanceof Element && target.closest('iframe, button, input, textarea, select, a, .drawer')) return;
+  swipeActive = true;
+  swipeStartX = event.clientX;
+  swipeStartY = event.clientY;
+});
+
+window.addEventListener('pointerup', (event) => {
+  if (!swipeActive) return;
+  swipeActive = false;
+  const dx = event.clientX - swipeStartX;
+  const dy = event.clientY - swipeStartY;
+  if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
+  advance(dx < 0 ? 1 : -1);
+});
+
+window.addEventListener('pointercancel', () => { swipeActive = false; });
 
 initTheme();
 const initialId = location.hash.replace(/^#\/?/, '');

@@ -45,6 +45,10 @@ npm run preview   # serve dist/
 | `F` | Fullscreen |
 | `Esc` | Close the presenter drawer |
 
+### Touch
+
+On phones and tablets, swipe left/right on the slide to navigate. Interactive controls and demo iframes are excluded so the demos remain usable; use the URL hash for direct jumps.
+
 ### What “Canned output” means
 
 It is the old “keynote mode”, renamed because the old label was unclear. When ON, every demo shows recorded output captured from this same browser and says so on screen. Use it if the model is missing, still downloading, or too slow on venue Wi-Fi. It is a **fallback, not the default**.
