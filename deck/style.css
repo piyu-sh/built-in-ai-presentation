@@ -118,8 +118,14 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
   font-weight: 600;
   letter-spacing: -.01em;
 }
-.slide.demo h1 { max-width: none; font-size: clamp(30px, 3.8vw, 56px); }
-.slide.status h1, .slide.projects h1 { font-size: clamp(32px, 4.4vw, 62px); }
+/* Title and closing slides keep their oversized type. Every content slide
+   uses the same heading/subheading scale so layouts stay predictable. */
+.slide:not(.title) h1 {
+  max-width: none;
+  font-size: clamp(28px, 3.4vw, 52px);
+  line-height: 1.05;
+  letter-spacing: -.045em;
+}
 
 .subtitle {
   margin: 0;
@@ -129,6 +135,7 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
   line-height: 1.4;
   z-index: 1;
 }
+.slide:not(.title) .subtitle { font-size: clamp(13px, 1.25vw, 18px); }
 
 .orbit {
   position: absolute;
