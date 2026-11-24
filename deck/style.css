@@ -296,6 +296,15 @@ a.project:hover, a.project:focus-visible { transform: translateY(-3px); border-c
 .mermaid-flow .edgeLabel .labelBkg,
 .mermaid-flow .edgeLabel .label,
 .mermaid-flow .nodeLabel p { background: transparent !important; }
+/* A background-colored halo keeps arrow lines from touching label glyphs without a visible box. */
+.mermaid-flow .edgeLabel p,
+.mermaid-flow .nodeLabel p {
+  text-shadow:
+    0 0 4px var(--bg), 0 0 4px var(--bg),
+    1px 0 0 var(--bg), -1px 0 0 var(--bg),
+    0 1px 0 var(--bg), 0 -1px 0 var(--bg),
+    1px 1px 0 var(--bg), -1px -1px 0 var(--bg);
+}
 .decision-flowchart { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 8px; flex: 1; min-height: 0; justify-content: center; width: 100%; margin: 0 auto; }
 .df-node, .df-fallback-ref {
   padding: clamp(10px, 1.2vw, 16px) clamp(12px, 1.4vw, 18px);

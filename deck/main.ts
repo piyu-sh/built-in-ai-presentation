@@ -174,9 +174,9 @@ async function renderMermaidFlow(container: HTMLElement, slide: Slide): Promise<
         htmlLabels: true,
         curve: 'basis',
         useMaxWidth: true,
-        nodeSpacing: 20,
-        rankSpacing: 26,
-        padding: 8,
+        nodeSpacing: 28,
+        rankSpacing: 36,
+        padding: 10,
       },
     });
     const { svg, bindFunctions } = await mermaid.render(`decision-flow-${seq}`, decisionDiagram(light));
