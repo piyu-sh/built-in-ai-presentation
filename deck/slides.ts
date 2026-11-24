@@ -317,7 +317,7 @@ if (state === 'available') {
       { label: 'Built-in AI APIs', url: 'https://developer.chrome.com/docs/ai/built-in-apis' },
     ],
     notes: [
-      'This is a real on-device evaluation, not a static mock. The Prompt API scores every session in one compact structured call: sessionId/score pairs plus three highlighted reasons/questions. No precomputed local scores.',
+      'This is a real on-device evaluation, not a static mock. The Prompt API scores every session in two small score-only calls, then asks for three highlighted reasons/questions; if that text call is unstable, the model scores stay and only the highlights fall back locally. No precomputed local scores.',
       'On landing, the full schedule is visible with empty score/reason/question cells. Click Match to fill all scores from the model; only the top 3 get reasons and attendee questions, while other rows just show shared-signal labels. Shuffle clears the cells; it does not auto-run.',
       'Start with my public LinkedIn facts, then Shuffle for fictional profiles. The prompt asks for questions from the attendee point of view — what should I do with this session? — so the audience gains something.',
       'The agenda is fictional and has no speaker names. Layout is inspired by a conference schedule, not an official clone. Nothing reads LinkedIn live; the product version would need consent.',

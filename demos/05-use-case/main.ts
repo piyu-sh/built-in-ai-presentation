@@ -122,7 +122,7 @@ const SESSIONS: Session[] = [
   { id: 'local-first', time: '13:30–14:00', title: 'Local-First Data Without the Headache', stage: 'Stage C', topic: 'Engineering', signals: ['web', 'devprod', 'applied-ai'] },
 ];
 
-const MATCH_SCHEMA = {
+const SCORE_SCHEMA = {
   type: 'object',
   properties: {
     scores: {
@@ -137,6 +137,14 @@ const MATCH_SCHEMA = {
         additionalProperties: false,
       },
     },
+  },
+  required: ['scores'],
+  additionalProperties: false,
+} as const;
+
+const HIGHLIGHT_SCHEMA = {
+  type: 'object',
+  properties: {
     highlights: {
       type: 'array',
       items: {
@@ -151,14 +159,12 @@ const MATCH_SCHEMA = {
       },
     },
   },
-  required: ['scores', 'highlights'],
+  required: ['highlights'],
   additionalProperties: false,
 } as const;
 
-type ModelResult = {
-  scores: Array<{ sessionId: string; score: number }>;
-  highlights: Match[];
-};
+type Score = { sessionId: string; score: number };
+type ModelResult = { scores: Score[]; highlights: Match[] };
 
 /** Identical to the shared prewarm options so the warmed/cached session is reused. */
 function promptOptions(): Record<string, unknown> {
@@ -209,21 +215,24 @@ function localMatches(profile: Profile): Match[] {
     .sort((a, b) => b.score - a.score);
 }
 
-function buildPrompt(profile: Profile): string {
+function normalizeModelOutput(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try { return JSON.stringify(value, null, 2) ?? ''; } catch { return String(value); }
+}
+
+function buildScoresPrompt(profile: Profile, sessions: Session[]): string {
   const person = {
     role: profile.role,
-    summary: profile.summary,
     signals: profile.signals.map((s) => SIGNAL_LABEL[s]),
   };
-  const agenda = SESSIONS.map((session) => ({
+  const agenda = sessions.map((session) => ({
     id: session.id,
     title: session.title,
     topic: session.topic,
     signals: session.signals.map((s) => SIGNAL_LABEL[s]),
   }));
-  return `You are helping this attendee pick sessions. Return ONLY valid JSON matching the schema.
-scores: an array of ${SESSIONS.length} objects, one for every sessionId in AGENDA, each with an integer score from 0 to 100. Include every sessionId exactly once; order does not matter. Score every session using only shared signals between PERSON and that session's signals. Do not invent facts.
-highlights: exactly 3 objects, and their sessionIds MUST be the 3 sessions with the highest scores. Copy sessionId from AGENDA. why: at most 10 words, plain, naming the strongest shared signals; no marketing words. question: one realistic question this attendee would actually ask in Q&A or over coffee to get practical value from this session. Write from the attendee's point of view ("What should I…", "How would I…", "Where would I…"), grounded in their role and the session topic. 8-16 words. No speaker names, no "fun", no "exciting", no generic "tell us more".
+  return `Score these sessions for this attendee. Return ONLY JSON matching the schema.
+scores: one object for EACH sessionId in AGENDA, with an integer score from 0 to 100. Include every sessionId exactly once; order does not matter. Use only shared signals between PERSON and that session. Do not invent facts.
 
 PERSON
 ${JSON.stringify(person)}
@@ -232,43 +241,99 @@ AGENDA
 ${JSON.stringify(agenda)}`;
 }
 
-function tryParse(text: string): ModelResult | null {
+function buildHighlightsPrompt(profile: Profile, targets: Score[]): string {
+  const person = {
+    role: profile.role,
+    signals: profile.signals.map((s) => SIGNAL_LABEL[s]),
+  };
+  const sessions = targets.map((target) => {
+    const session = SESSIONS.find((s) => s.id === target.sessionId)!;
+    return {
+      id: session.id,
+      title: session.title,
+      topic: session.topic,
+      score: target.score,
+      signals: session.signals.map((s) => SIGNAL_LABEL[s]),
+    };
+  });
+  return `Write short highlights for the top ${targets.length} sessions. Return ONLY JSON matching the schema.
+highlights: exactly ${targets.length} objects. Their sessionIds MUST be exactly the ids in TOP SESSIONS. Copy sessionId from TOP SESSIONS. why: at most 10 words, plain, naming the strongest shared signals; no marketing words. question: one realistic question this attendee would actually ask in Q&A or over coffee to get practical value from this session. Write from the attendee's point of view ("What should I…", "How would I…", "Where would I…"), grounded in their role and the session topic. 8-16 words. No speaker names, no "fun", no "exciting", no generic "tell us more".
+
+PERSON
+${JSON.stringify(person)}
+
+TOP SESSIONS
+${JSON.stringify(sessions)}`;
+}
+
+function parsePayload(text: string): Record<string, unknown> | null {
   const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
   const start = cleaned.indexOf('{');
   const end = cleaned.lastIndexOf('}');
   const candidate = start >= 0 && end > start ? cleaned.slice(start, end + 1) : cleaned;
   try {
-    const value = JSON.parse(candidate) as { scores?: unknown; highlights?: unknown };
-    if (!Array.isArray(value.scores)) return null;
-    const known = new Set(SESSIONS.map((s) => s.id));
-    const scores = value.scores
-      .filter((m): m is Record<string, unknown> => typeof m === 'object' && m !== null)
-      .filter((m) => typeof m.sessionId === 'string' && known.has(m.sessionId))
-      .map((m) => ({
-        sessionId: m.sessionId as string,
-        score: Math.max(0, Math.min(100, Number(m.score) || 0)),
-      }));
-    const byId = [...new Map(scores.map((m) => [m.sessionId, m])).values()];
-    if (new Set(byId.map((m) => m.sessionId)).size !== SESSIONS.length) return null;
-
-    const highlights = Array.isArray(value.highlights)
-      ? value.highlights
-          .filter((m): m is Record<string, unknown> => typeof m === 'object' && m !== null)
-          .filter((m) => typeof m.sessionId === 'string' && known.has(m.sessionId))
-          .map((m) => ({
-            sessionId: m.sessionId as string,
-            score: 0,
-            why: String(m.why ?? '').slice(0, 240),
-            question: String(m.question ?? '').slice(0, 240),
-          }))
-      : [];
-    return {
-      scores: byId,
-      highlights: [...new Map(highlights.map((m) => [m.sessionId, m])).values()],
-    };
+    const parsed: unknown = JSON.parse(candidate);
+    if (!parsed || typeof parsed !== 'object') return null;
+    const root = parsed as Record<string, unknown>;
+    const wrapper = root.result ?? root.output;
+    if (wrapper && typeof wrapper === 'object') return wrapper as Record<string, unknown>;
+    return root;
   } catch {
     return null;
   }
+}
+
+function parseScores(text: string, expectedIds: string[]): Score[] | null {
+  const payload = parsePayload(text);
+  if (!payload) return null;
+  const expected = new Set(expectedIds);
+  const raw = payload.scores ?? payload.matches;
+  const scores: Score[] = [];
+  const clamp = (value: unknown) => Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  if (Array.isArray(raw)) {
+    for (const [index, item] of raw.entries()) {
+      if (typeof item === 'number') {
+        const sessionId = expectedIds[index];
+        if (sessionId) scores.push({ sessionId, score: clamp(item) });
+        continue;
+      }
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      const sessionId = row.sessionId ?? row.id;
+      if (typeof sessionId === 'string' && expected.has(sessionId)) {
+        scores.push({ sessionId, score: clamp(row.score ?? row.value) });
+      }
+    }
+  } else if (raw && typeof raw === 'object') {
+    for (const [sessionId, score] of Object.entries(raw as Record<string, unknown>)) {
+      if (expected.has(sessionId)) scores.push({ sessionId, score: clamp(score) });
+    }
+  }
+  const unique = [...new Map(scores.map((m) => [m.sessionId, m])).values()];
+  return unique.length === expected.size ? unique : null;
+}
+
+function parseHighlights(text: string): Match[] | null {
+  const payload = parsePayload(text);
+  if (!payload) return null;
+  const raw = Array.isArray(payload.highlights) ? payload.highlights : payload.matches;
+  if (!Array.isArray(raw)) return null;
+  const known = new Set(SESSIONS.map((s) => s.id));
+  const highlights = raw
+    .filter((m): m is Record<string, unknown> => Boolean(m) && typeof m === 'object')
+    .map((m) => {
+      const sessionId = m.sessionId ?? m.id;
+      return typeof sessionId === 'string' && known.has(sessionId)
+        ? {
+            sessionId,
+            score: 0,
+            why: String(m.why ?? '').slice(0, 240),
+            question: String(m.question ?? '').slice(0, 240),
+          }
+        : null;
+    })
+    .filter((m): m is Match => m !== null);
+  return highlights.length ? [...new Map(highlights.map((m) => [m.sessionId, m])).values()] : null;
 }
 
 /** Model scores are authoritative; only the model's top 3 keep its why/question. */
@@ -344,10 +409,16 @@ function setStatus(text: string, kind: 'ok' | 'warn' | 'bad' | 'idle'): void {
   stateBadge.className = `badge badge-${kind}`;
 }
 
-function useFallback(label: string, kind: 'warn' | 'bad' = 'warn'): void {
+function useFallback(label: string, kind: 'warn' | 'bad' = 'warn', modelOutput?: string): void {
   const matches = localMatches(current);
   renderSchedule(matches);
-  rawBody.textContent = JSON.stringify({ source: label, matches }, null, 2);
+  rawBody.textContent = JSON.stringify({
+    source: label,
+    matches,
+    ...(modelOutput ? { modelOutput } : {}),
+  }, null, 2);
+  rawDetails.classList.toggle('has-error', Boolean(modelOutput));
+  rawDetails.open = Boolean(modelOutput);
   setStatus(label, kind);
   timingChip.textContent = 'local fallback';
 }
@@ -360,8 +431,15 @@ async function run(): Promise<void> {
 
   const options = promptOptions();
   await withBusy(runButton, 'Matching…', async () => {
+    rawDetails.classList.remove('has-error');
+    rawDetails.open = false;
     rawBody.textContent = '—';
     timingChip.textContent = '—';
+    const rawOutputs: string[] = [];
+    const showRaw = (label: string, output: string): void => {
+      rawOutputs.push(`--- ${label} ---\n${output}`);
+      rawBody.textContent = rawOutputs.join('\n\n');
+    };
     try {
       let session = getCachedSession('LanguageModel', options);
       if (!session) {
@@ -376,25 +454,92 @@ async function run(): Promise<void> {
       await warmDemo();
       setStatus('Prompt API: ready', 'ok');
 
-      setStatus('Prompt API: scoring all sessions…', 'ok');
+      const scores: Score[] = [];
+      const batches = [SESSIONS.slice(0, 4), SESSIONS.slice(4)];
+      let totalMs = 0;
+      for (const [index, batch] of batches.entries()) {
+        setStatus(`Prompt API: scoring ${index + 1}/${batches.length}…`, 'ok');
+        const prompt = buildScoresPrompt(current, batch);
+        const scored = await timed(async () => {
+          const value = await withTimeout(
+            Promise.resolve(call(session!, 'prompt', prompt, { responseConstraint: SCORE_SCHEMA })),
+            RUN_TIMEOUT,
+            `LanguageModel.prompt(scores ${index + 1})`,
+          );
+          return normalizeModelOutput(value);
+        });
+        totalMs += scored.ms;
+        showRaw(`scores ${index + 1}`, scored.value);
+        const parsed = parseScores(scored.value, batch.map((s) => s.id));
+        if (!parsed) throw new Error(`model did not return usable scores for batch ${index + 1}`);
+        scores.push(...parsed);
+        timingChip.textContent = `scores ${formatMs(totalMs)}`;
+      }
 
-      const prompt = buildPrompt(current);
-      const prompted = await timed(async () => {
-        const value = await withTimeout(
-          Promise.resolve(call(session!, 'prompt', prompt, { responseConstraint: MATCH_SCHEMA })),
-          RUN_TIMEOUT,
-          'LanguageModel.prompt()',
-        );
-        return String(value);
-      });
-      rawBody.textContent = prompted.value;
-      const result = tryParse(prompted.value);
-      if (!result) throw new Error('model did not return usable scores');
-      renderSchedule(buildMatches(current, result));
-      timingChip.textContent = `prompt ${formatMs(prompted.ms)}`;
-      setStatus('Prompt API: on-device result', 'ok');
+      const base = SESSIONS.map((session) => ({
+        sessionId: session.id,
+        score: scores.find((m) => m.sessionId === session.id)?.score ?? 0,
+        why: '',
+        question: '',
+      }));
+      renderSchedule(buildMatches(current, { scores, highlights: [] }));
+
+      const targets = [...base].sort((a, b) => b.score - a.score).slice(0, 3);
+      setStatus('Prompt API: writing top 3…', 'ok');
+      const highlightPrompt = buildHighlightsPrompt(current, targets);
+      let highlights: Match[] = [];
+      let highlightsFromModel = false;
+
+      // Constrained output is not equally stable across builds. Try plain JSON
+      // first, then the schema; scores already came from the Prompt API either way.
+      const attempts = [
+        { label: 'highlights plain', options: {} },
+        { label: 'highlights structured', options: { responseConstraint: HIGHLIGHT_SCHEMA } },
+      ];
+      for (const attempt of attempts) {
+        try {
+          const prompted = await timed(async () => {
+            const value = await withTimeout(
+              Promise.resolve(call(session!, 'prompt', highlightPrompt, attempt.options)),
+              20_000,
+              `LanguageModel.prompt(${attempt.label})`,
+            );
+            return normalizeModelOutput(value);
+          });
+          totalMs += prompted.ms;
+          showRaw(attempt.label, prompted.value);
+          const parsed = parseHighlights(prompted.value);
+          if (parsed?.length) {
+            highlights = parsed;
+            highlightsFromModel = true;
+            break;
+          }
+        } catch (error) {
+          showRaw(`${attempt.label} failed`, errText(error));
+        }
+      }
+
+      if (!highlightsFromModel) {
+        const local = new Map(localMatches(current).map((m) => [m.sessionId, m]));
+        highlights = targets.map((target) => {
+          const fallback = local.get(target.sessionId)!;
+          return {
+            sessionId: target.sessionId,
+            score: target.score,
+            why: fallback.why,
+            question: fallback.question,
+          };
+        });
+      }
+
+      renderSchedule(buildMatches(current, { scores, highlights }));
+      timingChip.textContent = `prompt ${formatMs(totalMs)}`;
+      setStatus(
+        highlightsFromModel ? 'Prompt API: on-device result' : 'Prompt API: scores on-device · local highlights',
+        highlightsFromModel ? 'ok' : 'warn',
+      );
     } catch (error) {
-      useFallback(`Prompt API: fallback · ${errText(error)}`, 'bad');
+      useFallback(`Prompt API: fallback · ${errText(error)}`, 'bad', rawOutputs.join('\n\n') || '—');
     }
   });
 }
@@ -424,6 +569,7 @@ async function downloadModel(): Promise<void> {
 function resetResults(): void {
   renderSchedule([]);
   rawBody.textContent = 'No match has been generated yet.';
+  rawDetails.classList.remove('has-error');
   rawDetails.open = false;
   timingChip.textContent = '';
   setStatus('Prompt API: — (not matched yet)', 'idle');

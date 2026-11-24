@@ -15,8 +15,13 @@ try {
   process.exit(1);
 }
 
-await rm(out, { recursive: true, force: true });
 await mkdir(join(out, 'tools'), { recursive: true });
+
+try {
+  await rm(join(out, 'dist'), { recursive: true, force: true });
+} catch {
+  console.warn('Could not clear the old portable dist folder (it may be open); copying over it instead.');
+}
 
 await cp(dist, join(out, 'dist'), { recursive: true });
 await cp(join(here, 'serve.mjs'), join(out, 'tools', 'serve.mjs'));
