@@ -22,6 +22,8 @@ let drawerClock: HTMLElement | null = null;
 let readiness = 'Model: checking…';
 let readinessTone: ReadinessTone = 'muted';
 let drawerNote = '';
+let flowRenderSeq = 0;
+let mermaidFlowHost: HTMLElement | null = null;
 
 const sync = new DeckSync('audience', (message: Message) => {
   if (message.source === 'presenter') handleCommand(message.command);
@@ -97,7 +99,87 @@ function renderStats(slide: Slide): HTMLElement {
   return grid;
 }
 
-function renderBranches(slide: Slide): HTMLElement {
+function decisionDiagram(light: boolean): string {
+  const c = light
+    ? { surface: '#ffffff', text: '#152238', cyan: '#0284c7', violet: '#7c3aed', green: '#059669', amber: '#b45309', red: '#dc2626', softRed: '#fff1f1', softAmber: '#fff8e8', softGreen: '#ecfdf5', softViolet: '#f5f0ff', softCyan: '#eef8ff' }
+    : { surface: '#101a2e', text: '#eef4ff', cyan: '#67e8f9', violet: '#c4b5fd', green: '#6ee7b7', amber: '#fcd34d', red: '#fca5a5', softRed: '#32161d', softAmber: '#2d2410', softGreen: '#0f2b25', softViolet: '#211c39', softCyan: '#102342' };
+  return `flowchart TD
+  A(["START<br/><b>Narrow on-device task?</b><br/><small>Detect · translate · summarize · extract</small>"])
+  B["<b>Privacy / offline / latency<br/>/ cost matter?</b><br/><small>Strong on-device signals</small>"]
+  C["<b>Cloud / server AI</b><br/>Latest knowledge · big context"]
+  D{"<b>Can the browser run it?</b><br/><small>availability() with create() options</small>"}
+  E["<b>Pick the API shape</b><br/>Task API · Prompt API<br/><b>SHIP with fallback</b>"]
+  F["<b>Fallback UX</b><br/>Cloud / hybrid / recorded"]
+
+  A -->|Yes| B
+  A -->|No / not ideal| C
+  B -->|Yes| D
+  B -->|No / partly| C
+  D -->|Available / downloadable| E
+  D -->|Unavailable| F
+  C -.->|Keep feature usable| F
+
+  classDef start fill:${c.softCyan},stroke:${c.cyan},color:${c.text},stroke-width:1.5px;
+  classDef decision fill:${c.softViolet},stroke:${c.violet},color:${c.text},stroke-width:1.5px;
+  classDef cloud fill:${c.softRed},stroke:${c.red},color:${c.text},stroke-width:1.5px;
+  classDef ship fill:${c.softGreen},stroke:${c.green},color:${c.text},stroke-width:1.5px;
+  classDef fallback fill:${c.softAmber},stroke:${c.amber},color:${c.text},stroke-width:1.5px;
+  class A start;
+  class B decision;
+  class C cloud;
+  class D decision;
+  class E ship;
+  class F fallback;`;
+}
+
+async function renderMermaidFlow(container: HTMLElement, slide: Slide): Promise<void> {
+  const seq = ++flowRenderSeq;
+  mermaidFlowHost = container;
+  const light = document.documentElement.dataset.theme === 'light';
+  try {
+    const { default: mermaid } = await import('mermaid');
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'base',
+      themeVariables: {
+        background: light ? '#f4f7fc' : '#050912',
+        fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+        fontSize: light ? '13px' : '13px',
+        primaryColor: light ? '#ffffff' : '#101a2e',
+        primaryTextColor: light ? '#152238' : '#eef4ff',
+        primaryBorderColor: light ? '#0284c7' : '#67e8f9',
+        secondaryColor: light ? '#eef8ff' : '#102342',
+        tertiaryColor: light ? '#f5f0ff' : '#211c39',
+        lineColor: light ? '#536a89' : '#93b4e0',
+        textColor: light ? '#152238' : '#eef4ff',
+        edgeLabelBackground: light ? '#ffffff' : '#0d1526',
+        clusterBkg: light ? '#eef3fa' : '#0e1729',
+        clusterBorder: light ? '#cfdaea' : '#24324e',
+      },
+      flowchart: {
+        htmlLabels: true,
+        curve: 'basis',
+        useMaxWidth: true,
+        nodeSpacing: 20,
+        rankSpacing: 26,
+        padding: 8,
+      },
+    });
+    const { svg, bindFunctions } = await mermaid.render(`decision-flow-${seq}`, decisionDiagram(light));
+    if (seq !== flowRenderSeq || !container.isConnected) return;
+    container.innerHTML = svg;
+    bindFunctions?.(container);
+    container.classList.add('ready');
+  } catch (error) {
+    if (seq !== flowRenderSeq) return;
+    console.error('Mermaid flowchart failed; using native fallback.', error);
+    container.classList.remove('ready');
+    container.replaceChildren(renderNativeFlow(slide));
+  }
+}
+
+function renderNativeFlow(slide: Slide): HTMLElement {
   const b = slide.branches ?? [];
   const node = (i: number, label: string, cls = ''): HTMLElement => {
     const br = b[i] ?? { q: '', a: '', tone: 'slate' as const };
@@ -110,35 +192,32 @@ function renderBranches(slide: Slide): HTMLElement {
   };
   const arrow = (text: string, cls = '') => h('div', { class: `df-arrow ${cls}`.trim() }, h('span', { class: 'df-arrow-line' }), h('span', { class: 'df-arrow-text', text }), h('span', { class: 'df-arrow-head', text: '▼' }));
 
-  // Layout:
-  // [0 task fit]
-  //   /Yes        \No/not ideal
-  // [1 constraints]  [3 fallback/cloud]
-  //   |Yes             |
-  // [2 availability]   (merges down to fallback)
-  //   |Yes      \No
-  // [4 shape]  [3 fallback/cloud] (reuse conceptually; show once on right)
   const wrap = h('div', { class: 'decision-flowchart' });
   wrap.append(node(0, 'START', 'df-start'));
-
   const split1 = h('div', { class: 'df-split' });
-  const left1 = h('div', { class: 'df-col' }, arrow('Yes', 'df-yes'), node(1, ''));
-  const right1 = h('div', { class: 'df-col' }, arrow('No / not ideal', 'df-no'), node(3, 'FALLBACK', 'df-fallback'));
-  split1.append(left1, right1);
+  split1.append(
+    h('div', { class: 'df-col' }, arrow('Yes', 'df-yes'), node(1, '')),
+    h('div', { class: 'df-col' }, arrow('No / not ideal', 'df-no'), node(3, 'FALLBACK', 'df-fallback')),
+  );
   wrap.append(split1);
-
   const mid = h('div', { class: 'df-mid' });
-  const leftMid = h('div', { class: 'df-col' }, arrow('Yes', 'df-yes'), node(2, ''));
-  const rightMid = h('div', { class: 'df-col df-col-fallback' }, h('div', { class: 'df-merge-note', text: 'Keep feature usable' }));
-  mid.append(leftMid, rightMid);
+  mid.append(
+    h('div', { class: 'df-col' }, arrow('Yes', 'df-yes'), node(2, '')),
+    h('div', { class: 'df-col df-col-fallback' }, h('div', { class: 'df-merge-note', text: 'Keep feature usable' })),
+  );
   wrap.append(mid);
-
   const split2 = h('div', { class: 'df-split df-split-bottom' });
-  const left2 = h('div', { class: 'df-col' }, arrow('Available / downloadable', 'df-yes'), node(4, 'SHIP', 'df-ship'));
-  const right2 = h('div', { class: 'df-col' }, arrow('Unavailable', 'df-no'), h('div', { class: 'df-fallback-ref tone-red' }, h('div', { class: 'df-q', text: 'Use fallback path' }), h('div', { class: 'df-a', text: 'Cloud/hybrid/server or explicit canned/degraded UX.' })));
-  split2.append(left2, right2);
+  split2.append(
+    h('div', { class: 'df-col' }, arrow('Available / downloadable', 'df-yes'), node(4, 'SHIP', 'df-ship')),
+    h('div', { class: 'df-col' }, arrow('Unavailable', 'df-no'), h('div', { class: 'df-fallback-ref tone-red' }, h('div', { class: 'df-q', text: 'Use fallback path' }), h('div', { class: 'df-a', text: 'Cloud/hybrid/server or explicit canned/degraded UX.' }))),
+  );
   wrap.append(split2);
+  return wrap;
+}
 
+function renderBranches(slide: Slide): HTMLElement {
+  const wrap = h('div', { class: 'mermaid-flow', text: 'Rendering flowchart…' });
+  void renderMermaidFlow(wrap, slide);
   return wrap;
 }
 
@@ -493,6 +572,9 @@ const THEME_KEY = 'builtin-ai:theme';
 function applyTheme(theme: 'dark' | 'light'): void {
   document.documentElement.dataset.theme = theme;
   try { localStorage.setItem(THEME_KEY, theme); } catch { /* ignore */ }
+  if (slides[index]?.kind === 'decision' && mermaidFlowHost?.isConnected) {
+    void renderMermaidFlow(mermaidFlowHost, slides[index]!);
+  }
 }
 
 function initTheme(): void {

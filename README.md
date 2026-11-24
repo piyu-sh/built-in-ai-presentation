@@ -7,7 +7,7 @@ The **audience view is clean**: no top bar, progress bar, timer, notes, or navig
 ## What's in the deck
 
 - **Live demos**: capabilities probe, cold-open detect/translate/summarize, Summarizer, Prompt API + JSON Schema extraction, translation-injection safety, and audience use-case → plan.
-- **Decision framework**: a branching flowchart for when to use built-in AI (task fit → on-device constraints → availability → API shape/fallback).
+- **Decision framework**: a branching Mermaid flowchart for when to use built-in AI (task fit → on-device constraints → availability → API shape/fallback), with a native HTML fallback. Mermaid is MIT-licensed and loaded lazily on that slide only.
 - **Real-world case studies**: verified Chrome published case studies (Yahoo Taiwan Ecommerce, redBus & Miravia, Policybazaar & JioHotstar, CyberAgent, Bright Sites & Terra).
 - **Presenter tools**: hidden drawer (`P`), synced presenter window (`W`), canned-output toggle (`K`), theme toggle in presenter settings, and per-slide reference links.
 
@@ -71,7 +71,7 @@ Full run of show: [`docs/talk-outline.md`](docs/talk-outline.md).
 index.html                 audience deck entry
 presenter.html             synced presenter window
 deck/slides.ts             visual slide content, timings, speaker notes, links
-deck/main.ts               clean renderer, navigation, hidden drawer, theme sync
+deck/main.ts               clean renderer, navigation, hidden drawer, theme sync, Mermaid flowchart
 deck/sync.ts               BroadcastChannel + localStorage sync, commands
 deck/style.css             audience deck + drawer styles (dark/light)
 presenter/                 presenter window UI, controls, references, theme toggle
