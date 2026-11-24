@@ -1,4 +1,4 @@
-import { availability, call, createSession, errText, formatMs, keynoteMode, timed, withTimeout } from '../shared/ai';
+import { availability, call, createAndCacheSession, createSession, errText, formatMs, getCachedSession, keynoteMode, timed, withTimeout } from '../shared/ai';
 import { badge, button, chip, h, pre, section } from '../shared/dom';
 import { CANNED, SAMPLES } from '../shared/data';
 
@@ -8,6 +8,7 @@ const textArea = h('textarea', {});
 textArea.value = SAMPLES[1]!.text;
 textArea.rows = 2;
 const samples = h('div', { class: 'controls' });
+let sampleSource = SAMPLES[1]!.lang;
 const target = h('select');
 for (const lang of ['en', 'fr', 'de', 'es', 'ja']) target.append(h('option', { value: lang, text: lang }));
 target.value = 'en';
@@ -23,34 +24,57 @@ const summarized = pre('Summary');
 // Code panel removed from default view for viewport-fit; keep logic minimal.
 
 for (const sample of SAMPLES) {
-  const b = button(sample.label, () => { textArea.value = sample.text; for (const x of samples.querySelectorAll('button')) x.classList.remove('active'); b.classList.add('active'); });
+  const b = button(sample.label, () => {
+    textArea.value = sample.text;
+    sampleSource = sample.lang;
+    for (const x of samples.querySelectorAll('button')) x.classList.remove('active');
+    b.classList.add('active');
+  });
   if (sample.label === 'Français') b.classList.add('active');
   samples.append(b);
 }
 
 async function downloadModels(): Promise<void> {
   downloadButton.disabled = true;
+  const dest = target.value;
   try {
-    const dest = target.value;
-    const src = 'fr';
     setBadge(detectorBadge, 'detector: checking', 'idle');
-    const dState = await availability('LanguageDetector');
-    if (dState !== 'unavailable') await createSession('LanguageDetector');
-    setBadge(detectorBadge, `detector: ${await availability('LanguageDetector')}`, 'ok');
+    try {
+      const dState = await availability('LanguageDetector');
+      if (dState !== 'unavailable') await createSession('LanguageDetector');
+      setBadge(detectorBadge, `detector: ${await availability('LanguageDetector')}`, 'ok');
+    } catch (e) {
+      setBadge(detectorBadge, `detector: ${errText(e)}`, 'bad');
+    }
 
-    setBadge(translatorBadge, 'translator: checking', 'idle');
-    const tOpts = { sourceLanguage: src, targetLanguage: dest === src ? 'en' : dest };
-    const tState = await availability('Translator', tOpts);
-    if (tState !== 'unavailable') await withTimeout((globalThis as any).Translator.create(tOpts), 180000, 'Translator.create()');
-    setBadge(translatorBadge, `translator: ${await availability('Translator', tOpts)}`, 'ok');
+    setBadge(translatorBadge, 'translator: downloading…', 'idle');
+    try {
+      const tOpts = { sourceLanguage: sampleSource, targetLanguage: dest === sampleSource ? 'en' : dest };
+      const cached = getCachedSession('Translator', tOpts);
+      if (cached) {
+        setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
+      } else {
+        const tState = await availability('Translator', tOpts);
+        if (tState === 'unavailable') {
+          setBadge(translatorBadge, 'translator: unavailable', 'warn');
+        } else {
+          await createAndCacheSession('Translator', tOpts, 180_000);
+          setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
+        }
+      }
+    } catch (e) {
+      setBadge(translatorBadge, `translator: ${errText(e)}`, 'bad');
+    }
 
     setBadge(summarizerBadge, 'summarizer: checking', 'idle');
-    const sOpts = { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: dest };
-    const sState = await availability('Summarizer', sOpts);
-    if (sState !== 'unavailable') await withTimeout((globalThis as any).Summarizer.create(sOpts), 180000, 'Summarizer.create()');
-    setBadge(summarizerBadge, `summarizer: ${await availability('Summarizer', sOpts)}`, 'ok');
-  } catch (e) {
-    setBadge(translatorBadge, `download: ${errText(e)}`, 'bad');
+    try {
+      const sOpts = { type: 'tldr', format: 'plain-text', length: 'short', outputLanguage: dest };
+      const sState = await availability('Summarizer', sOpts);
+      if (sState !== 'unavailable') await withTimeout((globalThis as any).Summarizer.create(sOpts), 180_000, 'Summarizer.create()');
+      setBadge(summarizerBadge, `summarizer: ${await availability('Summarizer', sOpts)}`, 'ok');
+    } catch (e) {
+      setBadge(summarizerBadge, `summarizer: ${errText(e)}`, 'bad');
+    }
   } finally {
     downloadButton.disabled = false;
   }
@@ -68,7 +92,7 @@ app.append(
         textArea,
         h('div', { class: 'controls' }, h('label', { text: 'To', style: 'margin:0 4px 0 0;' }), target, runButton, downloadButton),
         state,
-        h('p', { class: 'muted small', style: 'margin:6px 0 0;', text: 'If a model is downloadable, click “Download models” once (user gesture required).' }),
+        h('p', { class: 'muted small', style: 'margin:6px 0 0;', text: 'Chrome reports every language pair as “downloadable” until this page creates it. After Download models, Run reuses the ready session.' }),
       ),
       h('div', { class: 'grid', style: 'gap:8px;' }, detected.root, translated.root, summarized.root, timings),
     ),
@@ -133,16 +157,24 @@ async function run(): Promise<void> {
       tTranslate.set('skipped');
     } else {
       const options = { sourceLanguage: source, targetLanguage: dest };
-      const translatorState = await availability('Translator', options);
-      setBadge(translatorBadge, `translator: ${translatorState}`, translatorState === 'available' ? 'ok' : 'warn');
-      if (translatorState !== 'available') {
-        translated.set(`${source}→${dest} is ${translatorState} on this browser.\n\nRecorded example (${source}→en):\n${CANNED.hello.translate}`);
-        tTranslate.set(translatorState);
-      } else {
-        const translator = await createSession('Translator', options);
-        const result = await timed(async () => String(await call(translator, 'translate', text)));
+      const cached = getCachedSession('Translator', options);
+      if (cached) {
+        setBadge(translatorBadge, 'translator: ready (cached)', 'ok');
+        const result = await timed(async () => String(await call(cached, 'translate', text)));
         translated.set(result.value);
         tTranslate.set(formatMs(result.ms));
+      } else {
+        const translatorState = await availability('Translator', options);
+        setBadge(translatorBadge, `translator: ${translatorState}`, translatorState === 'available' ? 'ok' : 'warn');
+        if (translatorState !== 'available') {
+          translated.set(`${source}→${dest} is ${translatorState} on this browser. Click “Download models” once, then Run again.\n\nRecorded example (${source}→en):\n${CANNED.hello.translate}`);
+          tTranslate.set(translatorState);
+        } else {
+          const translator = await createAndCacheSession('Translator', options);
+          const result = await timed(async () => String(await call(translator, 'translate', text)));
+          translated.set(result.value);
+          tTranslate.set(formatMs(result.ms));
+        }
       }
     }
 

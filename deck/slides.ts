@@ -90,6 +90,7 @@ export const slides: Slide[] = [
       'Run the three calls. Point at the code panel: same shape every time.',
       'Land the line: the browser is shipping a model as a platform primitive, like Canvas or Web Crypto.',
       'If Canned output is ON, say explicitly: "This is recorded output from this exact browser."',
+      'Chrome reports every language pair as downloadable until this page creates a translator. After Download models, Run reuses the cached session instead of re-checking availability.',
     ],
   },
   {
@@ -289,6 +290,7 @@ if (state === 'available') {
       'Never assign model output to innerHTML. Use textContent, or setHTML with a sanitizer / Trusted Types.',
       'The spec added a note via webmachinelearning/translation-api#60. This is why "text in, text out" matters.',
       'If the translator is unavailable, the demo shows the recorded output from the canned path.',
+      'Chrome hides per-pair download status until a site creates a translator, so the demo caches the created session and reports “ready (cached)” instead of “downloadable”.',
     ],
   },
   {

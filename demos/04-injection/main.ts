@@ -1,4 +1,4 @@
-import { availability, createSession, errText, keynoteMode, timed, call, withTimeout } from '../shared/ai';
+import { availability, call, createAndCacheSession, errText, getCachedSession, keynoteMode, timed } from '../shared/ai';
 import { badge, button, codeBlock, h, pre, section } from '../shared/dom';
 import { INJECTION_INPUT, INJECTION_OUTPUT_CANNED } from '../shared/data';
 
@@ -51,7 +51,7 @@ app.append(
         stateLine,
         timingLine,
         unsafeBox,
-        h('p', { class: 'muted small', text: 'If downloadable, click “Download model” once (user gesture). If unavailable, check support/flags/on-device internals.' }),
+        h('p', { class: 'muted small', text: 'Chrome reports the pair as “downloadable” until this page creates it. After Download model, Translate reuses the ready session.' }),
       ),
       h('div', { class: 'grid', style: 'gap:10px;' }, translated.root, code.root),
     ),
@@ -63,17 +63,24 @@ stateLine.append(stateBadge);
 
 async function downloadModel(): Promise<void> {
   downloadButton.disabled = true;
-  stateBadge.textContent = 'translator: downloading/checking…';
+  stateBadge.textContent = 'translator: downloading…';
   stateBadge.className = 'badge badge-warn';
   try {
-    const st = await availability('Translator', OPTIONS);
-    if (st !== 'unavailable') {
-      const s = await withTimeout((globalThis as any).Translator.create(OPTIONS), 180000, 'Translator.create()') as { destroy?: () => void };
-      s.destroy?.();
+    const cached = getCachedSession('Translator', OPTIONS);
+    if (cached) {
+      stateBadge.textContent = 'translator: ready (cached)';
+      stateBadge.className = 'badge badge-ok';
+    } else {
+      const st = await availability('Translator', OPTIONS);
+      if (st === 'unavailable') {
+        stateBadge.textContent = 'translator: unavailable';
+        stateBadge.className = 'badge badge-warn';
+      } else {
+        await createAndCacheSession('Translator', OPTIONS, 180_000);
+        stateBadge.textContent = 'translator: ready (cached)';
+        stateBadge.className = 'badge badge-ok';
+      }
     }
-    const next = await availability('Translator', OPTIONS);
-    stateBadge.textContent = `translator: ${next}`;
-    stateBadge.className = `badge badge-${next === 'available' ? 'ok' : 'warn'}`;
   } catch (e) {
     stateBadge.textContent = `translator: ${errText(e)}`;
     stateBadge.className = 'badge badge-bad';
@@ -92,16 +99,22 @@ async function run(): Promise<void> {
       stateBadge.textContent = 'translator: keynote mode';
       stateBadge.className = 'badge badge-warn';
     } else {
-      const state = await availability('Translator', OPTIONS);
-      stateBadge.textContent = `translator: ${state}`;
-      stateBadge.className = `badge badge-${state === 'available' ? 'ok' : state === 'error' ? 'bad' : 'warn'}`;
-      if (state !== 'available') throw new Error(`Translator is ${state}. Click “Download model” once from this demo (user gesture). Recorded output below shows the risk.`);
-      const session = await createSession('Translator', OPTIONS, 60_000);
-      const result = await timed(async () => String(call(session, 'translate', text)));
+      const cached = getCachedSession('Translator', OPTIONS);
+      let session;
+      if (cached) {
+        session = cached;
+        stateBadge.textContent = 'translator: ready (cached)';
+        stateBadge.className = 'badge badge-ok';
+      } else {
+        const state = await availability('Translator', OPTIONS);
+        stateBadge.textContent = `translator: ${state}`;
+        stateBadge.className = `badge badge-${state === 'available' ? 'ok' : state === 'error' ? 'bad' : 'warn'}`;
+        if (state !== 'available') throw new Error(`Translator is ${state}. Click “Download model” once from this demo (user gesture). Recorded output below shows the risk.`);
+        session = await createAndCacheSession('Translator', OPTIONS);
+      }
+      const result = await timed(async () => String(await call(session, 'translate', text)));
       output = result.value;
       ms = result.ms;
-      const destroy = session['destroy'];
-      if (typeof destroy === 'function') destroy.call(session);
     }
     translated.set(output);
     timingLine.append(

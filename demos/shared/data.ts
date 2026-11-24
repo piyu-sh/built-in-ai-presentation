@@ -31,9 +31,9 @@ Review 14 — "Es fácil de usar y muy rápido, pero la sincronización con Goog
 Review 15 — "Battery drain is real on older laptops. On a new machine it is fine." — 3 stars`;
 
 export const SAMPLES = [
-  { label: 'English', text: 'The app is fast and the new design is lovely, but exporting a PDF crashes every time.' },
-  { label: 'Français', text: "L'application est rapide et le nouveau design est agréable, mais l'export PDF plante à chaque fois." },
-  { label: '日本語', text: 'アプリは速くて新しいデザインも良いのですが、PDFを書き出すと毎回クラッシュします。' },
+  { label: 'English', lang: 'en', text: 'The app is fast and the new design is lovely, but exporting a PDF crashes every time.' },
+  { label: 'Français', lang: 'fr', text: "L'application est rapide et le nouveau design est agréable, mais l'export PDF plante à chaque fois." },
+  { label: '日本語', lang: 'ja', text: 'アプリは速くて新しいデザインも良いのですが、PDFを書き出すと毎回クラッシュします。' },
 ];
 
 export const INVOICE_EMAIL = `Hi team,

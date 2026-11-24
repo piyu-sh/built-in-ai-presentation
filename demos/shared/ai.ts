@@ -103,6 +103,40 @@ export async function createSession(
   return session as Record<string, (...args: unknown[]) => unknown>;
 }
 
+export type BuiltinSession = Record<string, (...args: unknown[]) => unknown>;
+
+const SESSION_CACHE = new Map<string, BuiltinSession>();
+
+function sessionKey(name: string, options: Record<string, unknown>): string {
+  return `${name}:${JSON.stringify(options)}`;
+}
+
+/**
+ * Keep created sessions per API + options. Chrome intentionally reports every
+ * Translator language pair as `downloadable` until a site creates it, so a
+ * cached, already-created session is the honest source of truth after a
+ * successful download.
+ */
+export function getCachedSession(name: string, options: Record<string, unknown>): BuiltinSession | undefined {
+  return SESSION_CACHE.get(sessionKey(name, options));
+}
+
+export function cacheSession(name: string, options: Record<string, unknown>, session: BuiltinSession): void {
+  SESSION_CACHE.set(sessionKey(name, options), session);
+}
+
+export async function createAndCacheSession(
+  name: string,
+  options: Record<string, unknown> = {},
+  timeout = 180_000,
+): Promise<BuiltinSession> {
+  const cached = getCachedSession(name, options);
+  if (cached) return cached;
+  const session = await createSession(name, options, timeout);
+  cacheSession(name, options, session);
+  return session;
+}
+
 export type Timed<T> = { value: T; ms: number };
 
 export async function timed<T>(fn: () => Promise<T>): Promise<Timed<T>> {
