@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "serve": "node tools/serve.mjs",
+    "portable": "npm run build && node tools/make-portable.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -33,6 +33,18 @@ npm run build     # typecheck + production build to dist/
 npm run preview   # serve dist/
 ```
 
+## Portable pendrive
+
+Assuming Node.js 18+ is installed on the presentation machine:
+
+```bash
+npm run portable
+```
+
+This builds the deck and creates `portable-deck/`. Copy that **whole folder** to a pendrive, then run `START.bat` on Windows or `./start.sh` on macOS/Linux. It starts a zero-dependency local server on `127.0.0.1` and opens the deck automatically; no internet or cloud service is required. The real built-in AI demos still need browser support and available models on that machine.
+
+See [`PORTABLE.md`](PORTABLE.md) for details.
+
 ## Keyboard
 
 | Key | Action |
@@ -93,6 +105,9 @@ demos/03-structured/       Prompt API + JSON Schema → typed object
 demos/04-injection/        translation output is not sanitized HTML
 demos/05-use-case/         audience use case → plan (Prompt API + fallback)
 docs/                      research notes, outline, decisions
+tools/serve.mjs            zero-dependency localhost server for portable use
+tools/make-portable.mjs    builds portable-deck/ from dist/
+portable-deck/             generated pendrive package (npm run portable)
 ```
 
 ## Important implementation rules
