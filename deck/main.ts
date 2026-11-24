@@ -166,7 +166,7 @@ async function renderMermaidFlow(container: HTMLElement, slide: Slide): Promise<
         tertiaryColor: light ? '#f5f0ff' : '#211c39',
         lineColor: light ? '#536a89' : '#93b4e0',
         textColor: light ? '#152238' : '#eef4ff',
-        edgeLabelBackground: light ? '#ffffff' : '#0d1526',
+        edgeLabelBackground: 'transparent',
         clusterBkg: light ? '#eef3fa' : '#0e1729',
         clusterBorder: light ? '#cfdaea' : '#24324e',
       },
@@ -438,7 +438,7 @@ function renderSlide(slide: Slide): HTMLElement {
     }
     if (slide.id === 'thanks') {
       node.append(h('div', { class: 'thanks-qr' },
-        h('img', { src: '/qrcode.svg', alt: 'QR code linking to Piyush Gupta’s LinkedIn profile' }),
+        h('img', { src: `${import.meta.env.BASE_URL}qrcode.svg`, alt: 'QR code linking to Piyush Gupta’s LinkedIn profile' }),
       ));
     }
     if (slide.takeaways?.length && slide.id !== 'title' && slide.id !== 'thanks') {
