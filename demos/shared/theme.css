@@ -62,6 +62,11 @@ pre.code .fn { color: #67e8f9; }
 pre.code .str { color: #86efac; }
 pre.code .num { color: #fcd34d; }
 pre.code .cm { color: #7f93b2; font-style: italic; }
+pre.output .kw { color: #c4b5fd; }
+pre.output .fn { color: #67e8f9; }
+pre.output .str { color: #86efac; }
+pre.output .num { color: #fcd34d; }
+pre.output .cm { color: #7f93b2; font-style: italic; }
 
 textarea, input, select {
   width: 100%; background: #0a1226; color: var(--text);
@@ -166,6 +171,11 @@ footer.foot { margin-top: 24px; color: var(--muted); font-size: 12px; }
 :root[data-theme="light"] pre.code .str { color: #047857; }
 :root[data-theme="light"] pre.code .num { color: #b45309; }
 :root[data-theme="light"] pre.code .cm { color: #64748b; }
+:root[data-theme="light"] pre.output .kw { color: #7c3aed; }
+:root[data-theme="light"] pre.output .fn { color: #0369a1; }
+:root[data-theme="light"] pre.output .str { color: #047857; }
+:root[data-theme="light"] pre.output .num { color: #b45309; }
+:root[data-theme="light"] pre.output .cm { color: #64748b; font-style: italic; }
 :root[data-theme="light"] textarea,
 :root[data-theme="light"] input,
 :root[data-theme="light"] select { background: #ffffff; color: var(--text); border-color: var(--line); }

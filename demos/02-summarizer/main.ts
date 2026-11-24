@@ -30,7 +30,6 @@ textArea.rows = 7;
 
 const formatButtons = h('div', { class: 'controls' });
 const lengthButtons = h('div', { class: 'controls' });
-const audienceMode = h('div', { class: 'controls' });
 const runButton = button('Summarize', () => void run(), 'primary');
 const stateLine = h('div', { class: 'controls' });
 const timings = h('div', { class: 'chips' });
@@ -47,21 +46,12 @@ timings.append(tCreate.root, tFirst.root, tTotal.root);
 
 let format: Format = 'plain-text';
 let length: Length = 'short';
-let mode: 'hands' | 'qr' | 'paste' = 'hands';
 
 function cannedSummary(value: Length): string {
   if (value === 'medium') return CANNED.summary.bullets;
   if (value === 'long') return CANNED.summary.paragraph;
   return CANNED.summary.short;
 }
-
-const qrPanel = h('div', { class: 'callout', style: 'display:none; align-items:center; gap:16px; margin-top:12px;' },
-  h('div', { class: 'qr', title: 'Placeholder — not wired up yet' }),
-  h('div', {},
-    h('strong', { text: 'QR vote (placeholder) ' }),
-    document.createTextNode('— scan to choose the summary shape. For now the presenter clicks the same buttons on stage. The paste-anything box is always live, so nobody is locked out.'),
-  ),
-);
 
 function syncCode(): void {
   codePanel.set(`const options = {
@@ -119,21 +109,6 @@ for (const item of LENGTHS) {
   b.dataset.value = item.value;
   lengthButtons.append(b);
 }
-for (const item of [
-  { label: '🙋 Hands up', value: 'hands' },
-  { label: '📱 QR vote', value: 'qr' },
-  { label: '⌨️ Paste anything', value: 'paste' },
-] as Array<{ label: string; value: 'hands' | 'qr' | 'paste' }>) {
-  const b = button(item.label, () => {
-    mode = item.value;
-    for (const other of audienceMode.querySelectorAll('button')) other.classList.remove('active');
-    b.classList.add('active');
-    qrPanel.style.display = mode === 'qr' ? 'flex' : 'none';
-  });
-  if (item.value === 'hands') b.classList.add('active');
-  audienceMode.append(b);
-}
-
 textArea.rows = 7;
 app.append(
   h('div', { class: 'wrap', style: 'padding:12px 14px 16px;max-width:1180px;' },
@@ -153,13 +128,11 @@ app.append(
           h('div', { class: 'controls' }, runButton),
           stateLine,
           timings,
+          h('p', { class: 'muted small', text: 'Paste any text. Summarizer is task-specific and streams.' }),
         ),
         codePanel.root,
       ),
-      h('div', { class: 'grid', style: 'gap:10px;' },
-        result.root,
-        section('Audience', audienceMode, qrPanel, h('p', { class: 'muted small', text: 'Paste any text. Summarizer is task-specific and streams.' })),
-      ),
+      result.root,
     ),
   ),
 );

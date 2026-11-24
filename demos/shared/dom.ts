@@ -47,10 +47,38 @@ export async function withBusy<T>(
   }
 }
 
+function structuredOutput(text: string): { prefix: string; json: string } | null {
+  if (/^\s*[\[{]/.test(text) && /["{}\[\]]/.test(text)) {
+    return { prefix: '', json: text };
+  }
+  const marker = /Keynote output:\s*/g.exec(text);
+  if (marker) {
+    const start = marker.index + marker[0].length;
+    const json = text.slice(start).trimStart();
+    if (/^[\[{]/.test(json) && /["{}\[\]]/.test(json)) {
+      return { prefix: text.slice(0, start), json };
+    }
+  }
+  return null;
+}
+
 export function pre(label: string): { root: HTMLElement; set: (text: string) => void } {
   const body = h('pre', { class: 'mono output', text: '—' });
   const root = h('section', { class: 'panel' }, h('h3', { text: label }), body);
-  return { root, set: (text: string) => { body.textContent = text; } };
+  return {
+    root,
+    set: (text: string) => {
+      const fragment = document.createDocumentFragment();
+      const structured = structuredOutput(text);
+      if (structured) {
+        if (structured.prefix) fragment.append(document.createTextNode(structured.prefix));
+        fragment.append(highlightCode(structured.json));
+      } else {
+        fragment.append(document.createTextNode(text));
+      }
+      body.replaceChildren(fragment);
+    },
+  };
 }
 
 const CODE_KW = new Set(['const', 'let', 'var', 'await', 'async', 'function', 'return', 'if', 'else', 'for', 'of', 'new', 'throw', 'try', 'catch', 'import', 'from', 'export', 'type', 'true', 'false', 'null']);

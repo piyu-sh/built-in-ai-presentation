@@ -27,6 +27,7 @@ export type Project = {
   line: string;
   tag: string;
   tone?: Tone;
+  url?: string;
 };
 
 export type SlideLink = {
@@ -233,9 +234,9 @@ if (state === 'available') {
     title: 'You pick the summary shape',
     seconds: 200,
     demo: 'demos/02-summarizer/index.html',
-    demoLabel: 'AUDIENCE PICKS THE OUTPUT',
+    demoLabel: 'PICK THE OUTPUT SHAPE',
     notes: [
-      'Ask for a show of hands: one sentence, three bullets, or paragraph. Click the winning option.',
+      'Pick one shape yourself: one sentence, three bullets, or paragraph. Audience interaction lives on the final demo.',
       'Point at the streaming output before it finishes; narrate what is happening.',
       'Then paste something absurd (a commit message, a recipe) to show it is a general text task.',
       'Call out the timings: create(), first token, total. Warm first token was ~408ms vs ~19,169ms cold on the rehearsal laptop.',
@@ -384,24 +385,28 @@ return summarizeWithCloudApi(text);`,
         line: 'Used on-device AI for listing automation/discovery; reported listing time cut from 20 min to 2 min.',
         tag: 'Case study',
         tone: 'green',
+        url: 'https://developer.chrome.com/blog/built-in-ai-ambient-intelligence',
       },
       {
         title: 'redBus & Miravia',
         line: 'Used Summarizer API to create helpful user review summaries on the client side.',
         tag: 'Case study',
         tone: 'cyan',
+        url: 'https://developer.chrome.com/blog/summarizer-redbus-miravia',
       },
       {
         title: 'Policybazaar & JioHotstar',
         line: 'Used Translator + Language Detector APIs for multilingual experiences.',
         tag: 'Case study',
         tone: 'violet',
+        url: 'https://developer.chrome.com/blog/pb-jiohotstar-translation-ai',
       },
       {
         title: 'CyberAgent / Bright Sites / Terra',
         line: 'Writing assistance and article summaries with Prompt/Summarizer APIs.',
         tag: 'Case study',
         tone: 'amber',
+        url: 'https://developer.chrome.com/blog/prompt-api-blog-cyberagent',
       },
     ],
     links: [

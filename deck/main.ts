@@ -1,6 +1,6 @@
 import { h } from '../demos/shared/dom';
 import { prewarm, setKeynoteMode, keynoteMode, formatMs } from '../demos/shared/ai';
-import { slides, TOTAL_PLANNED, type Card, type Slide } from './slides';
+import { slides, TOTAL_PLANNED, type Card, type Project, type Slide } from './slides';
 import { DeckSync, clock, type DeckState, type Message, type PresenterCommand, type ReadinessTone } from './sync';
 import './style.css';
 
@@ -53,25 +53,34 @@ function broadcast(): void {
   sync.postState(currentState());
 }
 
-function cardNode(card: Card, position: number, variant: 'card' | 'poll' | 'status' | 'project'): HTMLElement {
+function cardNode(card: Card | Project, position: number, variant: 'card' | 'poll' | 'status' | 'project'): HTMLElement {
   const tone = card.tone ?? 'slate';
-  const node = h('article', { class: `${variant} tone-${tone}`, style: `--i:${position}` });
+  const url = 'url' in card ? card.url : undefined;
+  const classes = `${variant} tone-${tone}${url ? ' linked' : ''}`;
+  const node: HTMLElement = url
+    ? h('a', { class: classes, style: `--i:${position}`, href: url, target: '_blank', rel: 'noreferrer noopener', 'aria-label': `Open case study: ${card.title}` })
+    : h('article', { class: classes, style: `--i:${position}` });
 
   if (variant === 'project') {
     node.append(h('span', { class: 'tag', text: card.tag ?? '' }));
     node.append(h('h3', { text: card.title }));
-    if (card.sub) node.append(h('p', { text: card.sub }));
+    const line = 'line' in card ? card.line : card.sub;
+    if (line) node.append(h('p', { text: line }));
+    if (url) node.append(h('span', { class: 'project-link', text: 'Read case study ↗' }));
     return node;
   }
 
   const top = h('div', { class: 'card-top' });
-  if (card.n) top.append(h('span', { class: variant === 'poll' ? 'letter' : 'num', text: card.n }));
-  else if (card.glyph) top.append(h('span', { class: 'glyph', text: card.glyph }));
+  const n = 'n' in card ? card.n : undefined;
+  const glyph = 'glyph' in card ? card.glyph : undefined;
+  const sub = 'sub' in card ? card.sub : undefined;
+  if (n) top.append(h('span', { class: variant === 'poll' ? 'letter' : 'num', text: n }));
+  else if (glyph) top.append(h('span', { class: 'glyph', text: glyph }));
   else top.append(h('span', { class: 'dot' }));
   if (card.tag) top.append(h('span', { class: 'tag', text: card.tag }));
   node.append(top);
   node.append(h('h3', { text: card.title }));
-  if (card.sub) node.append(h('p', { text: card.sub }));
+  if (sub) node.append(h('p', { text: sub }));
   return node;
 }
 
@@ -298,14 +307,14 @@ function renderTitleVisual(): HTMLElement {
   svg.append(t('text', { x: '203', y: '57', 'text-anchor': 'middle', fill: '#9fb0cf', 'font-size': '9', 'font-family': 'ui-monospace,monospace' }, 'localhost / on-device'));
 
   // on-device chip inside browser
-  svg.append(s('rect', { x: '80', y: '105', width: '240', height: '118', rx: '16', fill: 'rgba(103,232,249,.05)', stroke: 'url(#tg)', 'stroke-width': '1.5' }));
-  svg.append(s('rect', { x: '152', y: '122', width: '96', height: '28', rx: '14', fill: 'rgba(103,232,249,.14)', stroke: 'rgba(103,232,249,.45)' }));
-  svg.append(t('text', { x: '200', y: '140', 'text-anchor': 'middle', fill: '#67e8f9', 'font-size': '11', 'font-weight': '700', 'font-family': 'ui-monospace,monospace' }, 'Gemini Nano'));
-  svg.append(t('text', { x: '200', y: '168', 'text-anchor': 'middle', fill: '#dbe7ff', 'font-size': '10', 'font-family': 'Inter,system-ui,sans-serif' }, 'Runs locally in the browser'));
-  svg.append(t('text', { x: '200', y: '186', 'text-anchor': 'middle', fill: '#9fb0cf', 'font-size': '9', 'font-family': 'Inter,system-ui,sans-serif' }, 'private · low latency · offline'));
-  // shield
-  svg.append(s('path', { d: 'M200 196 l14 5 v10c0 9-6 14-14 18-8-4-14-9-14-18v-10z', fill: 'rgba(110,231,183,.12)', stroke: 'rgba(110,231,183,.65)', 'stroke-width': '1.2' }));
-  svg.append(s('path', { d: 'M195 211 l4 4 7-8', fill: 'none', stroke: '#6ee7b7', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
+  svg.append(s('rect', { x: '80', y: '105', width: '240', height: '132', rx: '16', fill: 'rgba(103,232,249,.05)', stroke: 'url(#tg)', 'stroke-width': '1.5' }));
+  svg.append(s('rect', { x: '136', y: '118', width: '128', height: '34', rx: '17', fill: 'rgba(103,232,249,.14)', stroke: 'rgba(103,232,249,.45)' }));
+  svg.append(t('text', { x: '200', y: '141', 'text-anchor': 'middle', fill: '#67e8f9', 'font-size': '14', 'font-weight': '700', 'font-family': 'ui-monospace,monospace' }, 'Gemini Nano'));
+  svg.append(t('text', { x: '200', y: '172', 'text-anchor': 'middle', fill: '#dbe7ff', 'font-size': '11', 'font-family': 'Inter,system-ui,sans-serif' }, 'Runs locally in the browser'));
+  svg.append(t('text', { x: '200', y: '190', 'text-anchor': 'middle', fill: '#9fb0cf', 'font-size': '9', 'font-family': 'Inter,system-ui,sans-serif' }, 'private · low latency · offline'));
+  // shield — stays inside the on-device chip
+  svg.append(s('path', { d: 'M200 200 l14 5 v10c0 9-6 14-14 18-8-4-14-9-14-18v-10z', fill: 'rgba(110,231,183,.12)', stroke: 'rgba(110,231,183,.65)', 'stroke-width': '1.2' }));
+  svg.append(s('path', { d: 'M195 215 l4 4 7-8', fill: 'none', stroke: '#6ee7b7', 'stroke-width': '1.8', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }));
 
   // capability nodes
   const caps: Array<[string, string, number, number, string]> = [
@@ -333,7 +342,7 @@ function renderTitleVisual(): HTMLElement {
 }
 
 function renderSlide(slide: Slide): HTMLElement {
-  const node = h('section', { class: `slide ${slide.kind}` });
+  const node = h('section', { class: `slide ${slide.kind} slide-${slide.id}` });
 
   if (slide.kind === 'title') node.append(h('div', { class: 'orbit' }));
   if (slide.kicker) node.append(h('div', { class: 'kicker', text: slide.kicker }));
@@ -398,9 +407,23 @@ function renderSlide(slide: Slide): HTMLElement {
   }
 
   if (slide.kind === 'close') {
-    const wrap = h('div', { class: 'takeaways' });
+    const details = [
+      { glyph: '◇', label: 'SCOPE', sub: 'Detect · translate · summarize · extract' },
+      { glyph: '⚠', label: 'FALLBACK', sub: 'Unsupported states are part of the feature' },
+      { glyph: '→', label: 'SHIP', sub: 'Capability-check, then progressively enhance' },
+    ];
+    const wrap = h('div', { class: 'takeaways impact' });
     for (const [position, text] of (slide.takeaways ?? []).entries()) {
-      wrap.append(h('div', { class: 'takeaway', style: `--i:${position}`, text }));
+      const detail = details[position] ?? { glyph: '✦', label: 'REMEMBER', sub: '' };
+      const card = h('div', { class: `takeaway tone-${['cyan', 'amber', 'green'][position] ?? 'slate'}`, style: `--i:${position}` });
+      card.append(h('div', { class: 'takeaway-top' },
+        h('span', { class: 'takeaway-num', text: `0${position + 1}` }),
+        h('span', { class: 'takeaway-glyph', text: detail.glyph }),
+        h('span', { class: 'takeaway-label', text: detail.label }),
+      ));
+      card.append(h('div', { class: 'takeaway-title', text: text }));
+      if (detail.sub) card.append(h('div', { class: 'takeaway-sub', text: detail.sub }));
+      wrap.append(card);
     }
     node.append(wrap);
     return node;
@@ -412,7 +435,14 @@ function renderSlide(slide: Slide): HTMLElement {
     }
     if ((slide.id === 'title' || slide.id === 'thanks') && slide.takeaways?.[0]) {
       node.append(h('div', { class: 'title-author', text: slide.takeaways[0] }));
-    } else if (slide.takeaways?.length) {
+    }
+    if (slide.id === 'thanks') {
+      node.append(h('div', { class: 'thanks-qr' },
+        h('img', { src: '/qrcode.svg', alt: 'QR code linking to Piyush Gupta’s LinkedIn profile' }),
+        h('span', { text: 'Scan for my LinkedIn' }),
+      ));
+    }
+    if (slide.takeaways?.length && slide.id !== 'title' && slide.id !== 'thanks') {
       const wrap = h('div', { class: 'takeaways' });
       for (const [position, text] of slide.takeaways.entries()) {
         wrap.append(h('div', { class: 'takeaway', style: `--i:${position}`, text }));
