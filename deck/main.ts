@@ -355,7 +355,7 @@ function renderSlide(slide: Slide): HTMLElement {
       class: 'demo',
       src,
       title: slide.title,
-      allow: 'language-model; translator; language-detector; summarizer; writer; rewriter; proofreader',
+      allow: 'language-model; translator; language-detector; summarizer',
     });
     iframe.addEventListener('load', () => { void prewarmFor(slide.id); }, { once: true });
     const label = h('div', { class: 'demo-label' }, h('i'), h('span', { text: slide.demoLabel ?? 'LIVE DEMO' }));
