@@ -100,7 +100,7 @@ body { margin: 0; background: var(--bg); color: var(--text); overflow: hidden; }
   right: clamp(20px, 4vw, 64px);
   top: 50%;
   transform: translateY(-48%);
-  width: min(46vw, 560px);
+  width: min(48vw, 600px);
   z-index: 1;
   pointer-events: none;
   filter: drop-shadow(0 24px 60px rgba(0,0,0,.35));
@@ -604,7 +604,7 @@ body.presenter .drawer { transform: none; }
     right: clamp(16px, 3vw, 40px);
     top: 56%;
     transform: translateY(-50%);
-    width: min(42vw, 340px);
+    width: min(48vw, 390px);
     margin: 0;
     align-self: auto;
   }
@@ -612,31 +612,48 @@ body.presenter .drawer { transform: none; }
 }
 
 @media (max-width: 560px) {
-  .slide.title .title-visual { width: min(52vw, 260px); opacity: .92; }
+  .slide.title .title-visual { width: min(56vw, 290px); opacity: .92; }
   .slide.title h1 { font-size: clamp(36px, 9vw, 52px); }
 }
 
 /* Title/thanks typography and closing QR. */
 .title-author { font-size: clamp(18px, 2vw, 28px); }
 .slide-title .subtitle { letter-spacing: -.012em; }
-.slide-thanks { align-items: center; justify-content: center; text-align: center; }
-.slide-thanks h1 { max-width: none; font-size: clamp(62px, 9vw, 128px); }
+.slide-thanks {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: clamp(8px, 1.4vh, 16px);
+}
+.slide-thanks h1 { order: -1; max-width: none; font-size: clamp(62px, 9vw, 128px); }
 .slide-thanks .subtitle {
+  order: 0;
   max-width: none;
   color: var(--accent);
   font-size: clamp(22px, 3vw, 44px);
   font-weight: 700;
 }
+.slide-thanks .title-author {
+  order: 1;
+  position: static;
+  right: auto;
+  bottom: auto;
+  width: 100%;
+  margin: 0;
+  font-size: clamp(22px, 2.6vw, 34px);
+}
 .thanks-qr {
-  position: absolute;
-  left: 50%;
-  bottom: calc(var(--pad) + 18px);
+  order: -2;
+  position: static;
+  left: auto;
+  bottom: auto;
   z-index: 2;
-  transform: translateX(-50%);
+  transform: none;
+  margin: 0 auto;
 }
 .thanks-qr img {
   display: block;
-  width: clamp(132px, 14vw, 190px);
+  width: clamp(176px, 22vw, 240px);
   height: auto;
   padding: 10px;
   border: 1px solid var(--line);
@@ -648,5 +665,5 @@ body.presenter .drawer { transform: none; }
 
 @media (max-width: 900px), (max-height: 680px) {
   .slide.slide-title .subtitle { max-width: none; white-space: nowrap; }
-  .thanks-qr img { width: clamp(120px, 18vw, 160px); }
+  .thanks-qr img { width: clamp(160px, 22vw, 200px); }
 }
