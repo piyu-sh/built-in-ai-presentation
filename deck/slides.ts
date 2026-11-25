@@ -93,6 +93,8 @@ export const slides: Slide[] = [
       'Take one guess from the room. Do not give a number; let them anchor. Then pick a French sample and ask what language it is.',
       'Run the three calls. Point at the code panel: same shape every time.',
       'Reveal the title from the old version: "No key. No server. No network request." Zero per-call cost; the only one-off cost was the model already on the device.',
+      'Proof beat, 20-30 seconds: pre-open the AI settings page (chrome://settings/ai, or Settings → AI) and chrome://on-device-internals. Show the settings toggle/provisioning first, then point at the model state as downloaded/ready in internals. Do not open chrome://flags live unless asked.',
+      'Network proof: have DevTools Network open during the three calls and hold on it for a beat. Say "no new API request leaves the browser for inference" — assets loaded with the page, but the model calls themselves are local.',
       'Land the line: the browser is shipping a model as a platform primitive, like Canvas or Web Crypto.',
       'If Canned output is ON, say explicitly: "This is recorded output from this exact browser." Not a live model run.',
       'Chrome reports every language pair as downloadable until this page creates a translator. After Download models, Run reuses the cached session instead of re-checking availability.',
