@@ -285,16 +285,22 @@ footer.foot { margin-top: 24px; color: var(--muted); font-size: 12px; }
 @media (max-height: 520px) {
   .match-app { padding: 4px 10px 6px; }
   .match-header { margin-bottom: 4px; padding-bottom: 4px; }
+  .match-header .sub, .match-timing { display: none; }
   .match-status { margin-bottom: 4px; }
+  .match-status .badge { font-size: 12px; }
   .match-profile { padding: 6px 8px; }
-  .match-avatar { width: 28px; height: 28px; font-size: 10px; }
-  .match-name { font-size: 12px; }
+  .match-avatar { width: 30px; height: 30px; font-size: 11px; }
+  .match-name { font-size: 14px; }
+  .match-role { font-size: 11px; }
   .match-summary, .match-source, .match-raw, .match-slot small { display: none; }
-  .match-signal:nth-child(n+5) { display: none; }
-  .match-row { grid-template-columns: 68px minmax(0, 1fr) 32px minmax(0, 1.25fr); gap: 5px; padding: 3px 6px; }
-  .match-score { font-size: 12px; }
-  .match-row.is-match .match-score { font-size: 14px; }
-  .match-title { font-size: 9px; }
-  .match-meta { font-size: 7px; }
-  .match-why, .match-ask { font-size: 7px; line-height: 1.15; }
+  .match-signals { margin-top: 4px; gap: 3px; }
+  .match-signal { padding: 1px 5px; font-size: 8px; line-height: 1.2; }
+  .match-row { grid-template-columns: 76px minmax(0, 1fr) 38px minmax(0, 1.25fr); gap: 5px; padding: 3px 6px; }
+  .match-slot { font-size: 10px; }
+  .match-score { font-size: 15px; }
+  .match-row.is-match .match-score { font-size: 17px; }
+  .match-top { font-size: 7px; }
+  .match-title { font-size: 11px; }
+  .match-meta { font-size: 9px; }
+  .match-why, .match-ask { font-size: 9px; line-height: 1.15; }
 }

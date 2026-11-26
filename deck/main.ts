@@ -116,7 +116,7 @@ function decisionDiagram(light: boolean): string {
   const c = light
     ? { surface: '#ffffff', text: '#152238', cyan: '#0284c7', violet: '#7c3aed', green: '#059669', amber: '#b45309', red: '#dc2626', softRed: '#fff1f1', softAmber: '#fff8e8', softGreen: '#ecfdf5', softViolet: '#f5f0ff', softCyan: '#eef8ff' }
     : { surface: '#101a2e', text: '#eef4ff', cyan: '#67e8f9', violet: '#c4b5fd', green: '#6ee7b7', amber: '#fcd34d', red: '#fca5a5', softRed: '#32161d', softAmber: '#2d2410', softGreen: '#0f2b25', softViolet: '#211c39', softCyan: '#102342' };
-  return `flowchart TD
+  return `flowchart LR
   A(["START<br/><b>Narrow on-device task?</b><br/><small>Detect · translate · summarize · extract</small>"])
   B["<b>Privacy / offline / latency<br/>/ cost matter?</b><br/><small>Strong on-device signals</small>"]
   C["<b>Cloud / server AI</b><br/>Latest knowledge · big context"]
@@ -158,7 +158,7 @@ async function renderMermaidFlow(container: HTMLElement, slide: Slide): Promise<
       themeVariables: {
         background: light ? '#f4f7fc' : '#050912',
         fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-        fontSize: light ? '13px' : '13px',
+        fontSize: light ? '16px' : '16px',
         primaryColor: light ? '#ffffff' : '#101a2e',
         primaryTextColor: light ? '#152238' : '#eef4ff',
         primaryBorderColor: light ? '#0284c7' : '#67e8f9',
@@ -174,9 +174,9 @@ async function renderMermaidFlow(container: HTMLElement, slide: Slide): Promise<
         htmlLabels: true,
         curve: 'basis',
         useMaxWidth: true,
-        nodeSpacing: 28,
-        rankSpacing: 36,
-        padding: 10,
+        nodeSpacing: 22,
+        rankSpacing: 26,
+        padding: 8,
       },
     });
     const { svg, bindFunctions } = await mermaid.render(`decision-flow-${seq}`, decisionDiagram(light));
