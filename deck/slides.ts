@@ -90,6 +90,7 @@ export const slides: Slide[] = [
     notes: [
       'Frame it as a mystery before touching the demo: "If I built these three tiny features with a hosted API — language detection, translation, summarization — what tokens would it burn? What would the server integration cost? What did it cost me?"',
       'Make it concrete with familiar shapes: a Gmail-like inbox detects language, translates messages, summarizes threads; a Slack-like chat app translates messages and summarizes channels; an Airbnb/Amazon-like marketplace translates listings and reviews and summarizes review threads. Billions of tiny calls become a real monthly line item.',
+      'Scale math for the hosted path: using current Gemini Flash-Lite-ish pricing (~$0.30/M input, $2.50/M output), one ~600-token translation is under a tenth of a cent. At 100M / 1B / 5B translations a month, that is roughly $84k / $840k / $4.2M in tokens alone — before proxy, auth, quotas, logging/redaction, retries, capacity and latency work.',
       'Take one guess from the room. Do not give a number; let them anchor. Then pick a French sample and ask what language it is.',
       'Run the three calls. Point at the code panel: same shape every time.',
       'Reveal the title from the old version: "No key. No server. No network request." Zero per-call cost; the only one-off cost was the model already on the device.',
